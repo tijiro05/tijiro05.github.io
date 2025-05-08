@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8" />
@@ -6,21 +7,114 @@
     <script src="https://aframe.io/releases/1.0.4/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
+    <!-- animation-mixtureを使うため -->
+    <script src="https://cdn.rawgit.com/donmccurdy/aframe-extras/v4.2.0/dist/aframe-extras.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      #distance {
+        position: fixed;
+        z-index: 10000;
+        background-color: rgba(0,0,0,.8);
+        color: #fff;
+        text-align: center;
+        padding: 10px;
+        top: 10px;
+        left: 5%;
+        width: 90%;
+        display: block;
+      }
+      body {
+        margin: 0;
+      }
+      #message {
+        position: fixed;
+        z-index: 10;
+        left: 5%;
+        bottom: 30px;
+        width: 90%;
+        padding: 5%;
+        color: #fff;
+        font-weight: bold;
+        background-color: rgba(0,0,0,.8);
+        border-radius: 20px;
+        border: 3px solid #fff;
+        display: none;
+      }
+    </style>
   </head>
 
   <body style="margin: 0; overflow: hidden;">
+    <div id="distance"></div>
+    <div id="message">
+      大鎧ドラゴンがあらわれた！
+    </div>
     <a-scene
       vr-mode-ui="enabled: false"
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false;"
     >
-      <a-text
-        value="This content will always face you."
-        look-at="[gps-camera]"
-        scale="50 50 50"
-        gps-entity-place="latitude: 37.95608765475049; longitude: 139.33788299436034;"
-      ></a-text>
-      <a-camera gps-camera rotation-reader> </a-camera>
+      <!-- 3Dモデル（gltfファイル） -->
+      <a-assets>
+        <a-asset-items id="dragon" src="dragon.gltf" ></a-asset-items>
+      </a-assets>
+      <a-entity
+        gps-entity-place="latitude: 37.95610256107151; longitude: 139.33787297798202;"
+        gltf-model="#dragon"
+        scale="7 7 7"
+        rotation="0 0 0"
+        pisition="0 -1 0"
+        animation-mixer
+      ></a-entity>
+      <a-light
+        id="directionLight"
+        type="directional"
+        color="#FFF"
+        intensity="0"
+        position="-1 1 2">
+      </a-light>
+      <a-light
+        id="ambientLight"
+        type="ambient"
+        intensity="0"
+        color="#FFF">
+      </a-light>
+      <a-camera gps-camera="minDistance:10; maxDistance:50" rotation-reader> </a-camera>
     </a-scene>
+    <script>
+      window.addEventListener('load', function () {
+        const el = document.querySelector('[gps-entity-place]');
+        const distanceMsg = document.getElementById('distance');
+        const message = document.getElementById('message');
+        const directionLight = document.getElementById('directionLight');
+        const ambientLight = document.getElementById('ambientLight');
+        el.addEventListener('gps-entity-place-update-positon', (event) => {
+          distanceMsg.textContent = `あと${event.detail.distance}m`;
+          if(event.detail.distance <= 30) {
+            // 30m以下で明るくする、メッセージ表示、距離非表示
+            directionLight.setAttribute('intensity',1);
+            ambientLight.setAttribute('intensity',1);
+            distanceMsg.style.display = 'none';
+            message.style.display = 'block';
+          } else if(event.detail.distance <= 50) {
+            // 50m以下で近づくほど明るくする、メッセージ非表示、距離表示
+            directionLight.setAttribute('intensity',1 - event.detail.distance / 50);
+            ambientLight.setAttribute('intensity',1 - event.detail.distance / 50);
+            distanceMsg.style.display = 'block';
+            message.style.display = 'none';
+          } else {
+            // 50mより離れると、明るさ0、メッセージ非表示、距離表示
+            directionLight.setAttribute('intensity',0);
+            ambientLight.setAttribute('intensity',0);
+            distanceMsg.style.display = 'block';
+            message.style.display = 'none';
+          }
+        });
+      });
+    </script>
   </body>
 </html>
