@@ -8,11 +8,11 @@
 
     <script>
     
-      const img = document.getElementById('carImg');
+      const img = document.getElementById('img');
 
       mobilenet.load().then(model => {
        
-        model.classify(carImg).then((predictions) => {
+        model.classify(img).then((predictions) => {
          
           console.log(JSON.stringify(predictions, null, 2))
         })
