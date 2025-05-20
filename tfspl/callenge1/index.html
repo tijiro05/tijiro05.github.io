@@ -1,27 +1,43 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <meta charset="UTF-8">
+    <title>Truck Detector</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"></script>
     <script>
-      mobilenet.load().then(model => {
-        const img = document.getElementById('myImage');
-        // Classify the image
-        model.classify(img).then(predictions => {
-          console.log('Predictions: ', predictions);
-          // Was there a truck?
-          let foundATruck
-          predictions.forEach(p => {
-            foundATruck = foundATruck || p.className.includes("truck")
-          })
-          // TRUCK ALERT!
-          if (foundATruck) alert("TRUCK DETECTED!")
-        });
-      });
+      window.onload = async () => {
+        try {
+          const model = await mobilenet.load();
+          const img = document.getElementById('myImage');
+
+         
+          img.onload = async () => {
+            const predictions = await model.classify(img);
+            console.log('Predictions: ', predictions);
+
+         
+            let foundATruck = false;
+            predictions.forEach(p => {
+              if (p.className.toLowerCase().includes("truck")) {
+                foundATruck = true;
+              }
+            });
+
+            if (foundATruck) {
+              alert("TRUCK DETECTED!");
+            } else {
+              alert("No truck detected.");
+            }
+          };
+        } catch (err) {
+          console.error("Error loading model or classifying image:", err);
+        }
+      };
     </script>
   </head>
   <body>
     <h1>Is this a truck?</h1>
-    <img id="myImage" src="truck.jpg" width="100%"></img>
+    <img id="myImage" src="truck.jpg" width="100%" />
   </body>
 </html>
