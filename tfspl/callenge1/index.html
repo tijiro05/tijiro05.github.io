@@ -4,17 +4,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@1.0.0"></script>
 
-    <img id="image" src="https://github.com/GantMan/learn-tfjs/blob/0c0dbc8e5404c0fe57e3f03a89141e9efd49e90a/chapter2/simple/chapter-challenge/truck.jpg">
+    <img id="image" src="https://github.com/tijiro05/tijiro05.github.io/blob/84220ff4b899baeb1177a369604da82498ac2b81/tfspl/callenge1/truckSample.jpg">
 
     <script>
     
-      const img = document.getElementById('img');
+      const img = document.getElementById('image');
 
       mobilenet.load().then(model => {
        
         model.classify(img).then((predictions) => {
-         
-          console.log(JSON.stringify(predictions, null, 2))
         })
       })
     </script>
