@@ -2,8 +2,21 @@
 <html>
   <head>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/toxicity@1.2.2"></script>
     <script>
-      console.log(tf.version.tfjs)
+      const threshold = 0.5
+
+      toxicity.load(threshold).then((model) => {
+        const sentences = [
+          "You are a poopy head",
+          "I like turtles",
+          "Shut up"
+        ];
+        
+        model.classify(sebtences).then((predictions) => {
+          consol.log(JSON.stringify(predictions, null, 2))
+        });
+      });
     </script>
   </head>
   <body>
