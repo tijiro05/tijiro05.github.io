@@ -6,22 +6,21 @@
     <script>
       mobilenet.load().then(model => {
         const img = document.getElementById('myImage');
-        // Classify the image
+        // 画像を分析
         model.classify(img).then(predictions => {
           console.log('Predictions: ', predictions);
-          // Was there a truck?
+          // トラックを探す
           let foundATruck
           predictions.forEach(p => {
             foundATruck = foundATruck || p.className.includes("truck")
           })
-          // TRUCK ALERT!
-          if (foundATruck) alert("TRUCK DETECTED!")
+          if (foundATruck) alert("トラック発見!")
         });
       });
     </script>
   </head>
   <body>
-    <h1>Is this a truck?</h1>
+    <h1>トラック画像を識別します</h1>
     <img id="myImage" src="truckspl.jpg" width="10%"></img>
   </body>
 </html>
