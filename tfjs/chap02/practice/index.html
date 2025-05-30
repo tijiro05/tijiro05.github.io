@@ -3,17 +3,27 @@
   <head>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
     <script>
-      const second = tf.tensor1d([8, 6, 7, 5, 3, 0, 9])
+      console.log('start', tf.memory().numTensors)
 
-      try{
-        const nope = tf.tensor1d([[1], [2]])
-      }catch(e){
-        console.log("thats a negative ghost Rider")
-      }
+      let keeper, chaser, seeker, beater
 
-      console.log("Rank:", second.rank)
-      console.log("Size:", second.size)
-      console.log("Data Type:", second.dtype)
+      tf.tidy(() => {
+        keeper = tf.tensor([1, 2, 3])
+        chaser = tf.tensor([1, 2, 3])
+        seeker = tf.tensor([1, 2, 3])
+        beater = tf.tensor([1, 2, 3])
+
+        tf.keep(keeper)
+
+        return chaser
+      })
+
+      console.log('after tidy', tf.memory().numTensors)
+
+      keeper.dispose()
+      chaser.dispose()
+
+      cosole.log('end', tf.memory().numTensors)
     </script>
   </head>
   <body>
