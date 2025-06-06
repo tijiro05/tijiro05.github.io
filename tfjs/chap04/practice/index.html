@@ -7,7 +7,7 @@
   <body>
     <h1>Images to Tensors</h1>
     <h3>Our DOM image:</h3>
-    <img id="gant" src="/gant.jpg"/>
+    <img id="gant" src="gant.jpg"/>
     <script>
       window.addEventListener('load', function () {
         tf.tidy(() => {
@@ -21,7 +21,7 @@
 
           const cake = new Image()
           cake.crossOrigin = 'anonymous'
-          cake.src = '/cake.jpg'
+          cake.src = 'cake.jpg'
           cake.onload = () => {
             const cakeTensor = tf.browser.fromPixels(cake)
             console.log(
