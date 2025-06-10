@@ -13,7 +13,7 @@
 
     <script>
       tf.ready().then(() => {
-        const modelPath = '/model/tfjs_quant_uint8/model.json'
+        const modelPath = 'model/tfjs_quant_uint8/model.json'
         tf.tidy(() => {
           tf.loadLayersModel(modelPath).then((model) => {
             const petImage = document.getElementById('pet')
