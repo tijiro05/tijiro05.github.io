@@ -6,7 +6,7 @@
   <body>
       <h1>Locate Pet Faces - TensorFlow.js</h1>
       <div style="position: relative;">
-        <!-- NOTE: styles were modified post-print to fix issues with rendering at small viewports widths -->
+  
         <img id="pet" src="inukeikanojyo.jpeg" width="100%" />
         <canvas id="detection" style="position: absolute; left: 0; "></canvas>
       </div>
@@ -18,17 +18,16 @@
           tf.loadLayersModel(modelPath).then((model) => {
             const petImage = document.getElementById('pet')
             const myTensor = tf.browser.fromPixels(petImage)
-            // Model expects 256x256 0-1 value 3D tensor
+         
             const readyfied = tf.image
               .resizeNearestNeighbor(myTensor, [256, 256], true)
               .div(255)
               .reshape([1, 256, 256, 3])
 
             const result = model.predict(readyfied)
-            // Model returns top left and bottom right
+          
             result.print()
 
-            // Draw box on canvas
             const detection = document.getElementById('detection')
             const imgWidth = petImage.width
             const imgHeight = petImage.height
