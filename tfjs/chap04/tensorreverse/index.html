@@ -18,7 +18,6 @@
     <a href="/">Back to index</a>
     <script>
       window.addEventListener('load', function () {
-        // Simple Tensor Flip
         const lemonadeImage = document.getElementById('lemonade')
         const lemonadeCanvas = document.getElementById('lemonadeCanvas')
         const lemonadeTensor = tf.browser.fromPixels(lemonadeImage)
@@ -28,7 +27,6 @@
           flippedLemonadeTensor.dispose()
         })
 
-        // Batch Tensor Flip
         const cakeImage = document.getElementById('cake')
         const cakeCanvas = document.getElementById('cakeCanvas')
         const flipCake = tf.tidy(() => {
