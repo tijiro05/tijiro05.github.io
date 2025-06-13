@@ -404,8 +404,14 @@ void loop() {
       // 新しいゲームの初期化
       lcd.clear();
       lcd.setCursor(1, 0);
+      lcd.print("LOADING");
+      delay(500);
+      lcd.print("LOADING.");
+      delay(500);
       lcd.print("LOADING..");
-      delay(2000);
+      delay(500);
+      lcd.print("LOADING...");
+      delay(500);
 
       player1.set_score(0);
       player1.set_selection_count(0);
