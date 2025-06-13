@@ -6,12 +6,12 @@
   <body>
     <h1>AI Sees You!</h1>
     <div style="position: relative;">
-      <video id="mystery" width="100%" autoplay></video>
+      <video id="mystery" width="50%" autoplay></video>
       <canvas id="detection" style="position: absolute; left: 0"></canvas>
     </div>
 
     <script type="module">
-      import { CLASSES } from 'labels.js'
+      import { CLASSES } from "labels.js"
 
       async function setupWebcam(videoRef) {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
