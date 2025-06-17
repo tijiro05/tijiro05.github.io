@@ -1,6 +1,6 @@
 export const CLASSES = [
-  "person",
-  "bicycle",
+  "person"
+ /* "bicycle",
   "car",
   "motorcycle",
   "airplane",
@@ -88,5 +88,5 @@ export const CLASSES = [
   "scissors",
   "teddy bear",
   "hair drier",
-  "toothbrush",
+  "toothbrush",*/
 ];
