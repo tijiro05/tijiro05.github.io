@@ -135,7 +135,7 @@
           ctx.globalCompositeOperation = 'source-over'
           ctx.fillStyle = '#0B0'
           const textHeight = 50
-          const textPad = 12
+          const textPad = 50
           const label = `${detectedClass} ${Math.round(detectedScore * 100)}%`
           const textWidth = ctx.measureText(label).width
           ctx.fillRect(
