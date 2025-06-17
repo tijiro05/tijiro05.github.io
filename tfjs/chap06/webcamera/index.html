@@ -134,10 +134,10 @@
           // Draw the label background.
           ctx.globalCompositeOperation = 'source-over'
           ctx.fillStyle = '#0B0'
-          const textHeight = 30
-          const textPad = 50
+          const textHeight = 16
+          const textPad = 4
           const label = `${detectedClass} ${Math.round(detectedScore * 100)}%`
-          const textWidth = ctx.measureText(label).width
+          const textWidth = ctx.measureText(label).width*2
           ctx.fillRect(
             startX,
             startY,
