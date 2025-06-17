@@ -1,5 +1,5 @@
 export const CLASSES = [
-  "person"
+ // "person"
  /* "bicycle",
   "car",
   "motorcycle",
