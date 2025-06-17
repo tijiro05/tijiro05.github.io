@@ -50,7 +50,7 @@
       async function loadModel() {
         await tf.ready()
         const modelPath =
-          'https://tfhub.dev/tensorflow/tfjs-model/ssd_mobilenet_v2/1/default/1'
+          'https://tfhub.dev/tensorflow/tfjs-model/ssd_mobilenet_v3/1/default/1'
 
         return await tf.loadGraphModel(modelPath, { fromTFHub: true })
       }
