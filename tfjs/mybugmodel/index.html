@@ -23,7 +23,7 @@
             const readyfied = tf.image
               .resizeNearestNeighbor(myTensor, [224, 224], true)
               .div(255)
-              .reshape([1, 256, 256, 3])
+              .reshape([1, 224, 224, 3])
 
             const result = model.predict(readyfied)
           
