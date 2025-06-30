@@ -1,42 +1,50 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8">
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-    <title>カメムシを分類 - TensorFlow.js</title>
-    <style>
-      body { font-family: sans-serif; }
-    </style>
-  </head>
-  <body>
-    <h1>カメムシを分類 - TensorFlow.js</h1>
-    <img id="bug" src="tentoumushi.jpg" width="50%" />
-    <p id="result">分類中...</p>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+  <title>カメムシを分類 - TensorFlow.js</title>
+  <style>
+    body { font-family: sans-serif; }
+  </style>
+</head>
+<body>
+  <h1>カメムシを分類 - TensorFlow.js</h1>
+  <img id="bug" src="tentoumushi.jpg" width="50%" />
+  <p id="result">分類中...</p>
 
-    <script>
-      tf.ready().then(() => {
-        const modelPath = 'model/tfjs_quant_uint8/model.json';
-        tf.loadLayersModel(modelPath).then((model) => {
-          const bugImage = document.getElementById('bug');
+  <script>
+    const modelPath = 'model/tfjs_quant_uint8/model.json';
 
-          const tensor = tf.browser.fromPixels(bugImage)
-            .resizeBilinear([224, 224])
-            .div(255)
-            .expandDims(); // shape: [1, 224, 224, 3]
+    tf.loadLayersModel(modelPath).then((model) => {
+      const bugImage = document.getElementById('bug');
 
-          const prediction = model.predict(tensor);
+      bugImage.onload = () => {
+        // 画像をテンソルに変換（量子化uint8モデル用）
+        const tensor = tf.browser.fromPixels(bugImage)
+          .resizeBilinear([224, 224])
+          .toInt()  // ← 重要：量子化モデル用に整数型に
+          .expandDims(); // shape: [1, 224, 224, 3]
 
-          prediction.array().then((data) => {
-            const scores = data[0]; // 例: [0.95, 0.05]
-            const classIndex = scores.indexOf(Math.max(...scores));
+        // 推論
+        const prediction = model.predict(tensor);
 
-            const classLabels = ['カメムシ', 'その他'];
+        prediction.array().then((data) => {
+          const scores = data[0]; // 例: [0.95, 0.05]
+          const classIndex = scores.indexOf(Math.max(...scores));
+          const classLabels = ['カメムシ', 'その他'];
+          const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scores[classIndex] * 100).toFixed(1)}%）`;
+          document.getElementById('result').textContent = resultText;
 
-            const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scores[classIndex] * 100).toFixed(1)}%）`;
-            document.getElementById('result').textContent = resultText;
-          });
+          console.log('スコア:', scores);
         });
-      });
-    </script>
-  </body>
+      };
+
+      // 画像がすでに読み込まれていたらすぐ推論
+      if (bugImage.complete) {
+        bugImage.onload();
+      }
+    });
+  </script>
+</body>
 </html>
