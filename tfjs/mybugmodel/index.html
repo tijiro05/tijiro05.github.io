@@ -14,7 +14,7 @@
   <p id="result">分類中...</p>
 
   <script>
-    const modelPath = 'model/tfjs_quant_uint8/model.json';
+    const modelPath = 'model/model.json';
 
     tf.loadLayersModel(modelPath).then((model) => {
       const bugImage = document.getElementById('bug');
