@@ -6,16 +6,16 @@
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
   </head>
   <body>
-      <h1>カナブン、カメムシ、てんとう虫を検出 - TensorFlow.js</h1>
+      <h1>カメムシを検出 - TensorFlow.js</h1>
       <div style="position: relative;">
   
-        <img id="bug" src="kanabun.jpg" width="100%" />
+        <img id="bug" src="kamemushi.jpg" width="100%" />
         <canvas id="detection" style="position: absolute; left: 0; "></canvas>
       </div>
 
     <script>
       tf.ready().then(() => {
-        const modelPath = 'model/model.json'
+        const modelPath = 'model/tfjs_quant_uint8model.json/model.json'
         tf.tidy(() => {
           tf.loadLayersModel(modelPath).then((model) => {
             const bugImage = document.getElementById('bug')
