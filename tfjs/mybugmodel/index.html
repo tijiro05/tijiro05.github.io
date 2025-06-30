@@ -21,7 +21,7 @@
             const myTensor = tf.browser.fromPixels(bugImage)
          
             const readyfied = tf.image
-              .resizeNearestNeighbor(myTensor, [224, 224], true)
+              .resizeBilinear(myTensor, [224, 224])
               .div(255)
               .reshape([1, 224, 224, 3])
 
