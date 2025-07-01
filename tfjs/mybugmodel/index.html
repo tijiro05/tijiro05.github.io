@@ -32,7 +32,7 @@
         prediction.array().then((data) => {
           const scores = data[0]; // 例: [0.95, 0.05]
           const classIndex = scores.indexOf(Math.max(...scores));
-          const classLabels = ['カメムシ', 'てんとう虫', 'カナブン', 'その他'];
+          const classLabels = ['カメムシ', 'てんとう虫', 'カナブン'];
           const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scores[classIndex] * 100).toFixed(1)}%）`;
           document.getElementById('result').textContent = resultText;
 
