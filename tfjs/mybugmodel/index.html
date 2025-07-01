@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-  <title>カメムシ、てんとう虫、カナブンを分類 - TensorFlow.js</title>
+  <title>昆虫識別 - TensorFlow.js</title>
   <style>
     body { font-family: sans-serif; }
   </style>
 </head>
 <body>
-  <h1>カメムシ、てんとう虫、カナブンを分類 - TensorFlow.js</h1>
+  <h1>虫を分類 - TensorFlow.js</h1>
   <img id="bug" src="kamemushi.jpg" width="100%" />
   <p id="result">分類中...</p>
 
@@ -32,7 +32,7 @@
         prediction.array().then((data) => {
           const scores = data[0]; // 例: [0.95, 0.05]
           const classIndex = scores.indexOf(Math.max(...scores));
-          const classLabels = ['カメムシ', 'カナブン', 'てんとう虫'];
+          const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'あぶら虫', 'カメムシ', '蟻', '蜂', '蝶々', 'トンボ', '蜘蛛', '未定義'];
           const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scores[classIndex] * 100).toFixed(1)}%）`;
           document.getElementById('result').textContent = resultText;
 
