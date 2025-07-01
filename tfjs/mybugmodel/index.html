@@ -1,48 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-  <title>カメムシ、てんとう虫、カナブンを分類 - TensorFlow.js</title>
+  <title>虫を分類 - TensorFlow.js</title>
   <style>
     body { font-family: sans-serif; }
+    img { max-width: 200px; margin: 10px; }
+    .result { margin-bottom: 20px; }
   </style>
 </head>
 <body>
-  <h1>カメムシを分類 - TensorFlow.js</h1>
-  <img id="bug" src="kanabun01.jpg" width="100%" />
-  <p id="result">分類中...</p>
+  <h1>虫を分類 - TensorFlow.js</h1>
+
+  <input type="file" id="imageInput" multiple accept="image/*" />
+  <div id="results"></div>
 
   <script>
     const modelPath = 'model/model.json';
+    const classLabels = ['カメムシ', 'てんとう虫', 'カナブン'];
 
-    tf.loadLayersModel(modelPath).then((model) => {
-      const bugImage = document.getElementById('bug');
+    async function loadModel() {
+      return await tf.loadLayersModel(modelPath);
+    }
 
-      bugImage.onload = () => {
-        // 画像をテンソルに変換（量子化uint8モデル用）
-        const tensor = tf.browser.fromPixels(bugImage)
-          .resizeBilinear([224, 224])
-          .toInt()  // ← 重要：量子化モデル用に整数型に
-          .expandDims(); // shape: [1, 224, 224, 3]
+    function imageToTensor(img) {
+      return tf.browser.fromPixels(img)
+        .resizeBilinear([224, 224])
+        .toInt()
+        .expandDims();
+    }
 
-        // 推論
+    function createImageElement(file) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    async function classifyImages(files) {
+      const model = await loadModel();
+      const resultsDiv = document.getElementById('results');
+      resultsDiv.innerHTML = '';
+
+      for (const file of files) {
+        const img = await createImageElement(file);
+        const tensor = imageToTensor(img);
         const prediction = model.predict(tensor);
+        const scores = await prediction.array();
+        const scoreArray = scores[0];
+        const classIndex = scoreArray.indexOf(Math.max(...scoreArray));
+        const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scoreArray[classIndex] * 100).toFixed(1)}%）`;
 
-        prediction.array().then((data) => {
-          const scores = data[0]; // 例: [0.95, 0.05]
-          const classIndex = scores.indexOf(Math.max(...scores));
-          const classLabels = ['カメムシ', 'てんとう虫', 'カナブン'];
-          const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scores[classIndex] * 100).toFixed(1)}%）`;
-          document.getElementById('result').textContent = resultText;
+        const container = document.createElement('div');
+        container.className = 'result';
+        container.appendChild(img);
+        const p = document.createElement('p');
+        p.textContent = resultText;
+        container.appendChild(p);
+        resultsDiv.appendChild(container);
+      }
+    }
 
-          console.log('スコア:', scores);
-        });
-      };
-
-      // 画像がすでに読み込まれていたらすぐ推論
-      if (bugImage.complete) {
-        bugImage.onload();
+    document.getElementById('imageInput').addEventListener('change', (event) => {
+      const files = event.target.files;
+      if (files.length > 0) {
+        classifyImages(files);
       }
     });
   </script>
