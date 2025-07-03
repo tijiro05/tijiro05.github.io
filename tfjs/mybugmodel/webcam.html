@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>昆虫識別AI - Teachable Machine</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    img { max-width: 100%; margin-top: 10px; }
+    #confidenceBar { height: 20px; background: #eee; margin-top: 10px; width: 100%; border-radius: 5px; overflow: hidden; }
+    #confidenceFill { height: 100%; width: 0%; background: limegreen; transition: width 0.5s; }
+    #status { font-size: 14px; color: gray; }
+    .result-box { margin-top: 10px; font-size: 18px; }
+  </style>
+</head>
+<body>
+  <h1>昆虫識別AI</h1>
+
+  <input type="file" id="imageInput" accept="image/*"><br>
+  <img id="bug" src="" alt="虫の画像">
+  <p id="status">モデルを読み込み中...</p>
+
+  <div class="result-box">
+    <p id="result">分類結果がここに表示されます</p>
+    <div id="confidenceBar">
+      <div id="confidenceFill"></div>
+    </div>
+  </div>
+
+  <script>
+    const modelPath = 'model/model.json';
+    const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ'];
+    const bugImage = document.getElementById('bug');
+    let model;
+
+    // モデルを読み込む
+    tf.loadLayersModel(modelPath).then((loadedModel) => {
+      model = loadedModel;
+      document.getElementById('status').textContent = 'モデル読み込み完了。画像を選んでください。';
+    }).catch((err) => {
+      document.getElementById('status').textContent = 'モデルの読み込みに失敗しました。';
+      console.error(err);
+    });
+
+    // ファイル入力で画像読み込み
+    document.getElementById('imageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        bugImage.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 画像が読み込まれたら分類
+    bugImage.onload = () => {
+      if (!model) return;
+      document.getElementById('status').textContent = '分類中...';
+
+      const tensor = tf.browser.fromPixels(bugImage)
+        .resizeBilinear([224, 224])
+        .toFloat()
+        .div(tf.scalar(255))
+        .expandDims(); // shape: [1, 224, 224, 3]
+
+      model.predict(tensor).array().then((predictions) => {
+        const scores = predictions[0];
+
+        // 上位3候補を抽出
+        const topResults = scores
+          .map((score, i) => ({ label: classLabels[i], score }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+
+        // 結果表示
+        const resultText = topResults.map(r =>
+          `${r.label}（${(r.score * 100).toFixed(1)}%）`
+        ).join(' / ');
+
+        document.getElementById('result').textContent = `分類結果: ${resultText}`;
+        document.getElementById('status').textContent = '分類完了';
+
+        // 信頼度バー更新（トップ候補）
+        const topScore = topResults[0].score;
+        document.getElementById('confidenceFill').style.width = `${(topScore * 100).toFixed(1)}%`;
+      });
+    };
+  </script>
+</body>
+</html>
