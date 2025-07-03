@@ -2,22 +2,25 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>昆虫識別AI - Teachable Machine</title>
+  <title>昆虫識別AI - カメラ版</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    img { max-width: 100%; margin-top: 10px; }
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; text-align: center; }
+    video { width: 100%; max-width: 100%; border: 1px solid #ccc; margin-top: 10px; }
     #confidenceBar { height: 20px; background: #eee; margin-top: 10px; width: 100%; border-radius: 5px; overflow: hidden; }
     #confidenceFill { height: 100%; width: 0%; background: limegreen; transition: width 0.5s; }
     #status { font-size: 14px; color: gray; }
     .result-box { margin-top: 10px; font-size: 18px; }
+    button { margin-top: 10px; padding: 10px 20px; font-size: 16px; }
   </style>
 </head>
 <body>
-  <h1>昆虫識別AI</h1>
+  <h1>昆虫識別AI（カメラ版）</h1>
 
-  <input type="file" id="imageInput" accept="image/*"><br>
-  <img id="bug" src="" alt="虫の画像">
+  <video id="webcam" autoplay playsinline muted></video>
+  <br>
+  <button id="predictButton">分類する</button>
+
   <p id="status">モデルを読み込み中...</p>
 
   <div class="result-box">
@@ -30,51 +33,59 @@
   <script>
     const modelPath = 'model/model.json';
     const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ'];
-    const bugImage = document.getElementById('bug');
     let model;
+    const video = document.getElementById('webcam');
 
-    // モデルを読み込む
+    // モデル読み込み
     tf.loadLayersModel(modelPath).then((loadedModel) => {
       model = loadedModel;
-      document.getElementById('status').textContent = 'モデル読み込み完了。画像を選んでください。';
+      document.getElementById('status').textContent = 'モデル読み込み完了。カメラに虫を映して「分類する」を押してください。';
     }).catch((err) => {
       document.getElementById('status').textContent = 'モデルの読み込みに失敗しました。';
       console.error(err);
     });
 
-    // ファイル入力で画像読み込み
-    document.getElementById('imageInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    // カメラ起動
+    async function setupCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment' }, // 背面カメラ優先（スマホ）
+          audio: false
+        });
+        video.srcObject = stream;
+      } catch (err) {
+        alert('カメラへのアクセスが許可されていません。');
+        console.error(err);
+      }
+    }
 
-      const reader = new FileReader();
-      reader.onload = function(evt) {
-        bugImage.src = evt.target.result;
-      };
-      reader.readAsDataURL(file);
-    });
+    setupCamera();
 
-    // 画像が読み込まれたら分類
-    bugImage.onload = () => {
+    // 分類処理（ボタンクリック時）
+    document.getElementById('predictButton').addEventListener('click', () => {
       if (!model) return;
       document.getElementById('status').textContent = '分類中...';
 
-      const tensor = tf.browser.fromPixels(bugImage)
-        .resizeBilinear([224, 224])
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 224;
+      tempCanvas.height = 224;
+      const ctx = tempCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, 224, 224);
+
+      const imageData = ctx.getImageData(0, 0, 224, 224);
+      const tensor = tf.browser.fromPixels(imageData)
         .toFloat()
         .div(tf.scalar(255))
-        .expandDims(); // shape: [1, 224, 224, 3]
+        .expandDims(); // [1, 224, 224, 3]
 
-      model.predict(tensor).array().then((predictions) => {
+      model.predict(tensor).array().then(predictions => {
         const scores = predictions[0];
 
-        // 上位3候補を抽出
         const topResults = scores
           .map((score, i) => ({ label: classLabels[i], score }))
           .sort((a, b) => b.score - a.score)
           .slice(0, 3);
 
-        // 結果表示
         const resultText = topResults.map(r =>
           `${r.label}（${(r.score * 100).toFixed(1)}%）`
         ).join(' / ');
@@ -82,11 +93,10 @@
         document.getElementById('result').textContent = `分類結果: ${resultText}`;
         document.getElementById('status').textContent = '分類完了';
 
-        // 信頼度バー更新（トップ候補）
         const topScore = topResults[0].score;
         document.getElementById('confidenceFill').style.width = `${(topScore * 100).toFixed(1)}%`;
       });
-    };
+    });
   </script>
 </body>
 </html>
