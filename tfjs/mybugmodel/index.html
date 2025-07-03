@@ -2,49 +2,92 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <title>昆虫識別 - TensorFlow.js</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <style>
-    body { font-family: sans-serif; }
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    img { max-width: 100%; height: auto; margin-bottom: 10px; }
+    #confidenceBar { height: 20px; background: #eee; margin-top: 10px; width: 100%; border-radius: 5px; overflow: hidden; }
+    #confidenceFill { height: 100%; width: 0%; background: limegreen; transition: width 0.5s; }
+    #status { font-size: 14px; color: gray; }
+    .result-box { margin-top: 10px; font-size: 18px; }
   </style>
 </head>
 <body>
-  <h1>虫を分類 - TensorFlow.js</h1>
-  <img id="bug" src="kamemushi01.jpg" width="100%" />
-  <p id="result">分類中...</p>
+  <h1>昆虫識別AI（Teachable Machine）</h1>
+
+  <input type="file" id="imageInput" accept="image/*"><br>
+  <img id="bug" src="" alt="画像が表示されます">
+  <p id="status">モデル読み込み中...</p>
+
+  <div class="result-box">
+    <p id="result">分類結果をここに表示します</p>
+    <div id="confidenceBar">
+      <div id="confidenceFill"></div>
+    </div>
+  </div>
 
   <script>
     const modelPath = 'model/model.json';
+    const bugImage = document.getElementById('bug');
+    const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ'];
 
-    tf.loadLayersModel(modelPath).then((model) => {
-      const bugImage = document.getElementById('bug');
+    let model;
 
-      bugImage.onload = () => {
-        // 画像をテンソルに変換（量子化uint8モデル用）
-        const tensor = tf.browser.fromPixels(bugImage)
-          .resizeBilinear([224, 224])
-          .toInt()  // ← 重要：量子化モデル用に整数型に
-          .expandDims(); // shape: [1, 224, 224, 3]
-
-        // 推論
-        const prediction = model.predict(tensor);
-
-        prediction.array().then((data) => {
-          const scores = data[0]; // 例: [0.95, 0.05]
-          const classIndex = scores.indexOf(Math.max(...scores));
-          const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'あぶら虫', 'カメムシ', '蟻', '蜂', '蝶々', 'トンボ', '蜘蛛', '未定義'];
-          const resultText = `分類結果: ${classLabels[classIndex]}（信頼度: ${(scores[classIndex] * 100).toFixed(1)}%）`;
-          document.getElementById('result').textContent = resultText;
-
-          console.log('スコア:', scores);
-        });
-      };
-
-      // 画像がすでに読み込まれていたらすぐ推論
-      if (bugImage.complete) {
-        bugImage.onload();
-      }
+    // モデルをロード
+    tf.loadLayersModel(modelPath).then((loadedModel) => {
+      model = loadedModel;
+      document.getElementById('status').textContent = 'モデル読み込み完了。画像を選んでください。';
+    }).catch((error) => {
+      document.getElementById('status').textContent = 'モデルの読み込みに失敗しました。';
+      console.error(error);
     });
+
+    // ファイル選択 → 画像表示 → 推論
+    document.getElementById('imageInput').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        bugImage.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 画像表示後に推論開始
+    bugImage.onload = () => {
+      if (!model) return;
+
+      document.getElementById('status').textContent = '分類中...';
+
+      const tensor = tf.browser.fromPixels(bugImage)
+        .resizeBilinear([224, 224])
+        .toInt()
+        .expandDims();
+
+      model.predict(tensor).array().then((data) => {
+        const scores = data[0];
+
+        // 上位3クラスを抽出
+        const topResults = scores
+          .map((score, i) => ({ label: classLabels[i], score }))
+          .sort((a, b) => b.score - a.score)
+          .slice(0, 3);
+
+        // 表示更新
+        const resultText = topResults.map(r =>
+          `${r.label}（${(r.score * 100).toFixed(1)}%）`
+        ).join(' / ');
+
+        document.getElementById('result').textContent = `分類結果: ${resultText}`;
+        document.getElementById('status').textContent = '分類完了。';
+
+        // 信頼度バーを最上位の信頼度で更新
+        const topScore = topResults[0].score;
+        document.getElementById('confidenceFill').style.width = `${(topScore * 100).toFixed(1)}%`;
+      });
+    };
   </script>
 </body>
 </html>
