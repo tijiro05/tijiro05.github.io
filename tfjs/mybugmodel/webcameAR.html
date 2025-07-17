@@ -2,49 +2,46 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>動植物識別AI - AR統合版</title>
+  <title>動植物識別AR（マーカーレス）</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-  <script src="https://cdn.rawgit.com/jeromeetienne/ar.js/2.2.1/aframe/build/aframe-ar.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; text-align: center; }
-    video { width: 100%; max-width: 100%; border: 1px solid #ccc; margin-top: 10px; }
-    #confidenceBar { height: 20px; background: #eee; margin-top: 10px; width: 100%; border-radius: 5px; overflow: hidden; }
+    body { font-family: sans-serif; margin: 0; overflow: hidden; }
+    #overlay {
+      position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9);
+      padding: 10px; border-radius: 8px; z-index: 10;
+    }
+    #confidenceBar { height: 10px; background: #eee; margin-top: 5px; width: 100%; border-radius: 5px; overflow: hidden; }
     #confidenceFill { height: 100%; width: 0%; background: limegreen; transition: width 0.5s; }
-    #status { font-size: 14px; color: gray; }
-    .result-box { margin-top: 10px; font-size: 18px; }
-    button { margin-top: 10px; padding: 10px 20px; font-size: 16px; }
-    #arScene { margin-top: 20px; width: 100%; height: 400px; display: none; border: 1px solid #ccc; }
+    video { display: none; }
   </style>
 </head>
 <body>
-  <h1>動植物識別AI（AR統合版）</h1>
-
-  <video id="webcam" autoplay playsinline muted></video>
-  <br>
-  <button id="predictButton">分類する</button>
-
-  <p id="status">モデルを読み込み中...</p>
-
-  <div class="result-box">
+  <div id="overlay">
+    <p id="status">モデル読み込み中...</p>
     <p id="result">分類結果がここに表示されます</p>
-    <div id="confidenceBar">
-      <div id="confidenceFill"></div>
-    </div>
+    <div id="confidenceBar"><div id="confidenceFill"></div></div>
+    <button id="predictButton">分類する</button>
   </div>
 
-  <!-- AR表示部分（非表示にしておき、必要になったら表示） -->
-  <a-scene id="arScene" embedded arjs style="display: none;">
-    <a-marker type="pattern" url="clover.patt">
-      <a-entity 
-        text="value: シロツメクサ\n幸運を呼ぶ植物。\nクローバーとも呼ばれます; 
-              color: green; 
-              align: center; 
-              width: 2;" 
-        position="0 0.3 0">
-      </a-entity>
-    </a-marker>
-    <a-entity camera></a-entity>
+  <video id="webcam" autoplay playsinline muted></video>
+
+  <a-scene embedded vr-mode-ui="enabled: false">
+    <!-- カメラ映像を背景に -->
+    <a-assets>
+      <video id="videoTexture" autoplay loop muted></video>
+    </a-assets>
+
+    <a-sky id="sky" radius="10" theta-length="180" material="shader: flat; src: #videoTexture;"></a-sky>
+
+    <!-- シロツメクサ認識時の3Dテキスト -->
+    <a-entity id="cloverText" visible="false"
+              text="value: シロツメクサ\n幸運を呼ぶ植物。\nクローバーとも呼ばれます;
+                    color: green; width: 2; align: center"
+              position="0 1.5 -3">
+    </a-entity>
+
+    <a-entity camera look-controls></a-entity>
   </a-scene>
 
   <script>
@@ -52,36 +49,26 @@
     const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
     let model;
     const video = document.getElementById('webcam');
+    const videoTexture = document.getElementById('videoTexture');
 
     // モデル読み込み
     tf.loadLayersModel(modelPath).then((loadedModel) => {
       model = loadedModel;
-      document.getElementById('status').textContent = 'モデル読み込み完了。カメラに対象を映して「分類する」を押してください。';
-    }).catch((err) => {
-      document.getElementById('status').textContent = 'モデルの読み込みに失敗しました。';
-      console.error(err);
+      document.getElementById('status').textContent = 'モデル読み込み完了。カメラに映して「分類する」を押してください。';
     });
 
     // カメラ起動
     async function setupCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-          audio: false
-        });
-        video.srcObject = stream;
-      } catch (err) {
-        alert('カメラへのアクセスが許可されていません。');
-        console.error(err);
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      video.srcObject = stream;
+      videoTexture.srcObject = stream;
     }
 
     setupCamera();
 
-    // 分類処理（ボタン）
+    // 分類ボタン押下時
     document.getElementById('predictButton').addEventListener('click', () => {
       if (!model) return;
-      document.getElementById('status').textContent = '分類中...';
 
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = 224;
@@ -90,10 +77,7 @@
       ctx.drawImage(video, 0, 0, 224, 224);
 
       const imageData = ctx.getImageData(0, 0, 224, 224);
-      const tensor = tf.browser.fromPixels(imageData)
-        .toFloat()
-        .div(tf.scalar(255))
-        .expandDims();
+      const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
       model.predict(tensor).array().then(predictions => {
         const scores = predictions[0];
@@ -109,14 +93,10 @@
 
         document.getElementById('result').textContent = `分類結果: ${resultText}`;
         document.getElementById('status').textContent = '分類完了';
+        document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
 
-        const topScore = topResults[0].score;
-        document.getElementById('confidenceFill').style.width = `${(topScore * 100).toFixed(1)}%`;
-
-        // ★ シロツメクサ認識でAR表示を有効化
-        if (topResults[0].label === 'シロツメクサ' && topScore > 0.85) {
-          document.getElementById('status').textContent = 'シロツメクサを認識！ARを表示中...';
-          document.getElementById('arScene').style.display = 'block';
+        if (topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.85) {
+          document.getElementById('cloverText').setAttribute('visible', 'true');
         }
       });
     });
