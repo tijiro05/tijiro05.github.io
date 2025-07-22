@@ -13,7 +13,6 @@
     }
     #confidenceBar { height: 10px; background: #eee; margin-top: 5px; width: 100%; border-radius: 5px; overflow: hidden; }
     #confidenceFill { height: 100%; width: 0%; background: limegreen; transition: width 0.5s; }
-   
   </style>
 </head>
 <body>
@@ -32,14 +31,13 @@
       <video id="videoTexture" autoplay loop muted></video>
     </a-assets>
 
-    <a-sky id="sky" radius="10" theta-length="180" material="shader: flat; src: #videoTexture;"></a-sky>
+    <!-- 背景をカメラ映像として表示 -->
+    <a-video src="#videoTexture" position="0 1.6 -3" rotation="0 0 0" width="4" height="3"></a-video>
 
     <!-- シロツメクサ認識時の3Dテキスト -->
-    <a-entity id="cloverText" visible="false"
-              text="value: This is White Clover;
-                    color: #000; width:100; align: center"
-              position="0 1.7 -2"
-              scale="1 1 1">
+    <a-entity id="cloverText" visible="false" position="0 1.6 -1">
+      <a-plane color="#FFFFFF" height="0.5" width="2"></a-plane>
+      <a-text value="これはシロツメクサです" color="#000000" align="center" position="0 0 0.01" width="2"></a-text>
     </a-entity>
 
     <a-entity camera look-controls></a-entity>
@@ -95,11 +93,12 @@
         document.getElementById('result').textContent = `分類結果: ${resultText}`;
         document.getElementById('status').textContent = '分類完了';
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
-        console.log(topResults[0].score);
-        console.log(topResults[0].label);
 
-        if (topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.85) {
+        // シロツメクサ認識時にテキスト表示
+        if (topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5) {
           document.getElementById('cloverText').setAttribute('visible', 'true');
+        } else {
+          document.getElementById('cloverText').setAttribute('visible', 'false');
         }
       });
     });
