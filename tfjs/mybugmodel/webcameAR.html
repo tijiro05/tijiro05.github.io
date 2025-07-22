@@ -6,16 +6,54 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
   <style>
-    body { font-family: sans-serif; margin: 0; overflow: hidden; }
-    #overlay {
-      position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9);
-      padding: 10px; border-radius: 8px; z-index: 10;
+    body { margin: 0; overflow: hidden; }
+
+    /* ウェブカメラを全画面表示に */
+    #webcam {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 0;
     }
-    #confidenceBar { height: 10px; background: #eee; margin-top: 5px; width: 100%; border-radius: 5px; overflow: hidden; }
-    #confidenceFill { height: 100%; width: 0%; background: limegreen; transition: width 0.5s; }
+
+    /* UI オーバーレイ */
+    #overlay {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10;
+      font-family: sans-serif;
+    }
+
+    #confidenceBar {
+      height: 10px; background: #eee; margin-top: 5px;
+      width: 100%; border-radius: 5px; overflow: hidden;
+    }
+
+    #confidenceFill {
+      height: 100%; width: 0%; background: limegreen;
+      transition: width 0.5s;
+    }
+
+    /* A-Frame 全画面設定 */
+    a-scene {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
   </style>
 </head>
 <body>
+  <!-- ウェブカメラの全画面表示 -->
+  <video id="webcam" autoplay playsinline muted></video>
+
+  <!-- UI オーバーレイ -->
   <div id="overlay">
     <p id="status">モデル読み込み中...</p>
     <p id="result">分類結果がここに表示されます</p>
@@ -23,20 +61,11 @@
     <button id="predictButton">分類する</button>
   </div>
 
-  <video id="webcam" autoplay playsinline muted></video>
-
+  <!-- A-Frame 3D表示 -->
   <a-scene embedded vr-mode-ui="enabled: false">
-    <!-- カメラ映像を背景に -->
-    <a-assets>
-      <video id="videoTexture" autoplay loop muted></video>
-    </a-assets>
-
-    <!-- 背景をカメラ映像として表示 -->
-    <a-video src="#videoTexture" position="0 1.6 -1" rotation="0 0 0"></a-video>
-
-    <!-- カメラとその子にテキストを設置 -->
+    <!-- カメラと3Dテキスト -->
     <a-entity camera look-controls>
-      <!-- 常に視界中央に表示される3Dテキスト -->
+      <!-- 常に視界中央に表示されるテキスト -->
       <a-entity id="cloverText" visible="false" position="0 0 -1">
         <a-text value="This is White Clover" color="#000000" align="center"></a-text>
       </a-entity>
@@ -48,7 +77,6 @@
     const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
     let model;
     const video = document.getElementById('webcam');
-    const videoTexture = document.getElementById('videoTexture');
 
     // モデル読み込み
     tf.loadLayersModel(modelPath).then((loadedModel) => {
@@ -60,19 +88,18 @@
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
       video.srcObject = stream;
-      videoTexture.srcObject = stream;
     }
 
     setupCamera();
 
-    // 分類ボタン押下時
+    // 分類ボタン処理
     document.getElementById('predictButton').addEventListener('click', () => {
       if (!model) return;
 
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = 224;
-      tempCanvas.height = 224;
-      const ctx = tempCanvas.getContext('2d');
+      const canvas = document.createElement('canvas');
+      canvas.width = 224;
+      canvas.height = 224;
+      const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, 224, 224);
 
       const imageData = ctx.getImageData(0, 0, 224, 224);
@@ -94,12 +121,9 @@
         document.getElementById('status').textContent = '分類完了';
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
 
-        // シロツメクサ認識時にテキスト表示
-        if ((topResults[0].label === 'シロツメクサ') && (topResults[0].score > 0.5)) {
-          document.getElementById('cloverText').setAttribute('visible', 'true');
-        } else {
-          document.getElementById('cloverText').setAttribute('visible', 'false');
-        }
+        // シロツメクサのとき表示
+        const cloverVisible = topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5;
+        document.getElementById('cloverText').setAttribute('visible', cloverVisible);
       });
     });
   </script>
