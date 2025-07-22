@@ -35,7 +35,7 @@
     <a-sky id="sky" radius="10" theta-length="180" material="shader: flat; src: #videoTexture;"></a-sky>
 
     <!-- シロツメクサ認識時の3Dテキスト -->
-    <a-entity id="cloverText" visible="true"
+    <a-entity id="cloverText" visible="false"
               text="value: シロツメクサ\n幸運を呼ぶ植物。\nクローバーとも呼ばれます;
                     color: green; width: 2; align: center"
               position="0 1.5 -3">
@@ -94,6 +94,7 @@
         document.getElementById('result').textContent = `分類結果: ${resultText}`;
         document.getElementById('status').textContent = '分類完了';
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
+        console.log(topResults[0].score);
 
         if (topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.85) {
           document.getElementById('cloverText').setAttribute('visible', 'true');
