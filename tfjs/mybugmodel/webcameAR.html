@@ -95,6 +95,7 @@
         document.getElementById('status').textContent = '分類完了';
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
         console.log(topResults[0].score);
+        console.log(topResults[0].label);
 
         if (topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.85) {
           document.getElementById('cloverText').setAttribute('visible', 'true');
