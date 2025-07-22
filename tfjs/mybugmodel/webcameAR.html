@@ -95,7 +95,7 @@
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
 
         // シロツメクサ認識時にテキスト表示
-        if (topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5) {
+        if ((topResults[0].label === 'シロツメクサ') && (topResults[0].score > 0.5)) {
           document.getElementById('cloverText').setAttribute('visible', 'true');
         } else {
           document.getElementById('cloverText').setAttribute('visible', 'false');
