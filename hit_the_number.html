@@ -2,38 +2,45 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hit the Number Game</title>
   <style>
     body {
       font-family: sans-serif;
       background-color: #f7f7f7;
       text-align: center;
-      padding: 40px;
+      padding: 40px 20px;
+      margin: 0;
     }
 
     input[type=number] {
-      padding: 10px;
-      font-size: 16px;
-      width: 150px;
+      padding: 12px;
+      font-size: 18px;
+      width: 70%;
+      max-width: 300px;
+      box-sizing: border-box;
     }
 
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      margin-left: 10px;
+      padding: 12px 20px;
+      font-size: 18px;
+      margin-top: 10px;
+      display: inline-block;
     }
 
     .message {
-      margin-top: 20px;
-      font-size: 18px;
+      margin-top: 25px;
+      font-size: 20px;
     }
   </style>
 </head>
 <body>
 
-  <h1>Hit the Number Game</h1>
+  <h1>Hit the Number!</h1>
   <p>Guess the number between <strong>1</strong> and <strong>1000</strong>.</p>
+
   <input id="guessInput" type="number" min="1" max="1000" placeholder="Enter your guess">
+  <br>
   <button onclick="submitGuess()">Guess</button>
 
   <div class="message" id="hint"></div>
@@ -49,6 +56,7 @@
       document.getElementById("guessInput").value = "";
       document.getElementById("hint").textContent = "";
       document.getElementById("result").textContent = "";
+      document.getElementById("guessInput").focus();
     }
 
     function submitGuess() {
@@ -68,6 +76,14 @@
         result.textContent = tries === 1
           ? "🎯 It's correct! You got it on the first try!"
           : `🎯 It's correct! You tried ${tries} times.`;
+
+        // ✅ キーボードを閉じる
+        input.blur();
+
+        // ✅ 自動スクロールして結果が見えるように
+        setTimeout(() => {
+          result.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
 
         if (confirm("Play again?")) {
           resetGame();
