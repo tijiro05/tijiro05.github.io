@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hit the Number Game</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background-color: #f7f7f7;
+      text-align: center;
+      padding: 40px;
+    }
+
+    input[type=number] {
+      padding: 10px;
+      font-size: 16px;
+      width: 150px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-left: 10px;
+    }
+
+    .message {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Hit the Number Game</h1>
+  <p>Guess the number between <strong>1</strong> and <strong>1000</strong>.</p>
+  <input id="guessInput" type="number" min="1" max="1000" placeholder="Enter your guess">
+  <button onclick="submitGuess()">Guess</button>
+
+  <div class="message" id="hint"></div>
+  <div class="message" id="result"></div>
+
+  <script>
+    let answer = Math.floor(Math.random() * 1000) + 1;
+    let tries = 0;
+
+    function resetGame() {
+      answer = Math.floor(Math.random() * 1000) + 1;
+      tries = 0;
+      document.getElementById("guessInput").value = "";
+      document.getElementById("hint").textContent = "";
+      document.getElementById("result").textContent = "";
+    }
+
+    function submitGuess() {
+      const input = document.getElementById("guessInput");
+      const guess = parseInt(input.value);
+      const hint = document.getElementById("hint");
+      const result = document.getElementById("result");
+
+      if (isNaN(guess) || guess < 1 || guess > 1000) {
+        hint.textContent = "Please enter a number between 1 and 1000.";
+        return;
+      }
+
+      tries++;
+
+      if (guess === answer) {
+        result.textContent = tries === 1
+          ? "🎯 It's correct! You got it on the first try!"
+          : `🎯 It's correct! You tried ${tries} times.`;
+
+        if (confirm("Play again?")) {
+          resetGame();
+        }
+
+      } else if (guess < answer) {
+        hint.textContent = `🔺 Bigger than ${guess}`;
+      } else {
+        hint.textContent = `🔻 Smaller than ${guess}`;
+      }
+    }
+  </script>
+
+</body>
+</html>
