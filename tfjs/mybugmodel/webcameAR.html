@@ -3,8 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <title>動植物識別AR</title>
+
+  <!-- ライブラリ -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-physics-system@4.0.1/dist/aframe-physics-system.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/super-hands@4.0.5/dist/super-hands.min.js"></script>
+
   <style>
     body { margin: 0; overflow: hidden; }
     #webcam {
@@ -53,59 +58,46 @@
     <button id="predictButton">分類する</button>
   </div>
 
-  <a-scene embedded vr-mode-ui="enabled: false">
-    <a-box id="cloverObj" position="0 0 -3" visible="false"></a-box>
+  <a-scene embedded vr-mode-ui="enabled: false" physics="debug: false">
+    <!-- ドラッグ可能な Clover オブジェクト -->
+    <a-box id="cloverObj"
+           position="0 0 -3"
+           visible="false"
+           dynamic-body
+           class="draggable"
+           grabbable
+           stretchable
+           draggable
+           droppable
+           color="#4CAF50">
+    </a-box>
 
+    <!-- カメラ + コントローラー -->
     <a-entity id="cameraRig" position="0 0 0">
       <a-entity camera look-controls position="0 1.6 0"></a-entity>
+      <a-entity laser-controls="hand: right"
+                raycaster="objects: .draggable"
+                super-hands>
+      </a-entity>
     </a-entity>
 
+    <!-- 吹き出し -->
     <a-entity id="cloverText" visible="false" position="0 0 -2">
-      <a-plane
-        color="#000000"
-        width="2.5"
-        height="1.2"
-        position="0 0 -0.005"
-        material="shader: flat; opacity: 1"
-      ></a-plane>
-
-      <a-plane
-        color="#ffffff"
-        width="2.4"
-        height="1.1"
-        position="0 0 0"
-        material="shader: flat; opacity: 1"
-      ></a-plane>
-
-      <a-text
-        id="bubbleText"
-        font="msdf/MPLUSRounded1c-ExtraBold-msdf.json"
-        font-image="msdf/MPLUSRounded1c-ExtraBold-msdf.png"
-        value="これはシロツメサ よつばのクローバーともいうよ"
-        color="#111"
-        align="center"
-        position="0 0 0.01"
-        width="5"
-        wrap-count="40"
-      ></a-text>
-
-      <a-triangle
-        id="tailBlack"
-        color="#000000"
-        vertex-a="0 -0.62 0"
-        vertex-b="-0.3 -0.9 0"
-        vertex-c="0.3 -0.9 0"
-        position="0 -0.575 0"
-      ></a-triangle>
-
-      <a-triangle
-        id="tailWhite"
-        color="#ffffff"
-        vertex-a="0 -0.55 0"
-        vertex-b="-0.27 -0.85 0"
-        vertex-c="0.27 -0.85 0"
-        position="0 -0.525 0"
-      ></a-triangle>
+      <a-plane color="#000000" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
+      <a-plane color="#ffffff" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
+      <a-text id="bubbleText"
+              value="これはシロツメサ よつばのクローバーともいうよ"
+              color="#111"
+              align="center"
+              position="0 0 0.01"
+              width="5"
+              wrap-count="40"></a-text>
+      <a-triangle id="tailBlack" color="#000000"
+                  vertex-a="0 -0.62 0" vertex-b="-0.3 -0.9 0" vertex-c="0.3 -0.9 0"
+                  position="0 -0.575 0"></a-triangle>
+      <a-triangle id="tailWhite" color="#ffffff"
+                  vertex-a="0 -0.55 0" vertex-b="-0.27 -0.85 0" vertex-c="0.27 -0.85 0"
+                  position="0 -0.525 0"></a-triangle>
     </a-entity>
   </a-scene>
 
@@ -130,7 +122,7 @@
     }
     setupCamera();
 
-    // しっぽ向き更新関数
+    // 吹き出しの向き更新
     function updateTailDirection() {
       const cloverText = document.getElementById('cloverText');
       const tailBlack = document.getElementById('tailBlack');
@@ -141,12 +133,11 @@
 
       const bubblePos = new THREE.Vector3();
       cloverText.object3D.getWorldPosition(bubblePos);
-
       const targetPos = new THREE.Vector3();
       cloverObj.object3D.getWorldPosition(targetPos);
 
       const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-      dir.y = 0; // 水平方向のみ
+      dir.y = 0;
 
       if (dir.length() < 0.001) {
         tailBlack.setAttribute('rotation', '0 0 0');
@@ -157,17 +148,14 @@
       }
 
       dir.normalize();
-
       const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-
       tailBlack.setAttribute('rotation', `0 ${angle} 0`);
       tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-
       tailBlack.setAttribute('position', '0 -0.575 0');
       tailWhite.setAttribute('position', '0 -0.525 0');
     }
 
-    // 分類ボタン処理
+    // 分類ボタン
     document.getElementById('predictButton').addEventListener('click', () => {
       if (!model) return;
 
@@ -182,7 +170,6 @@
 
       model.predict(tensor).array().then(predictions => {
         const scores = predictions[0];
-
         const topResultIndex = scores.indexOf(Math.max(...scores));
         const topLabel = classLabels[topResultIndex];
 
@@ -190,18 +177,14 @@
         const bubbleText = document.getElementById('bubbleText');
         const cloverObj = document.getElementById('cloverObj');
 
-        // 吹き出しに分類ラベルだけセット
         bubbleText.setAttribute('value', topLabel);
 
         if (topLabel === 'This is White Clover') {
           cloverText.setAttribute('visible', true);
-
           bubbleText.setAttribute('value', "これはシロツメクサ\nよつばのクローバーともいうよ");
 
-          // cloverObjはカメラの前3mに固定
           cloverObj.setAttribute('position', '0 0 -3');
 
-          // cloverObjの右上に吹き出しを配置（Zは少し手前にずらす）
           const objPos = cloverObj.getAttribute('position');
           cloverText.setAttribute('position', {
             x: objPos.x + 0.5,
@@ -216,7 +199,6 @@
       });
     });
 
-    // 毎フレームしっぽの向きを更新
     AFRAME.registerComponent('tail-update', {
       tick: function () {
         updateTailDirection();
