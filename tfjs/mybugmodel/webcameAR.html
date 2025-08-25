@@ -91,6 +91,7 @@
         position="0 0 0.01"
         width="1.3"
         wrap-count="20"
+        font="https://cdn.aframe.io/fonts/mozillavr.fnt"
       ></a-text>
 
       <!-- 黒い三角しっぽ -->
@@ -205,12 +206,12 @@
           // cloverObjはカメラの前3mに固定
           cloverObj.setAttribute('position', '0 0 -3');
 
-          // cloverObjの右上に吹き出しを配置
+          // cloverObjの右上に吹き出しを配置（Zは少し手前にずらす）
           const objPos = cloverObj.getAttribute('position');
           cloverText.setAttribute('position', {
             x: objPos.x + 0.5,
             y: objPos.y + 0.5,
-            z: objPos.z
+            z: objPos.z + 0.1
           });
 
           updateTailDirection();
