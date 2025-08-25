@@ -2,39 +2,27 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>動植物識別AR（漫画風吹き出し 修正版）</title>
+  <title>動植物識別AR（尻尾が対象に向く吹き出し）</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
   <style>
-    body {
-      margin: 0;
-      overflow: hidden;
-    }
-
+    body { margin: 0; overflow: hidden; }
     #webcam {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      object-fit: cover;
-      z-index: 0;
+      position: absolute; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      object-fit: cover; z-index: 0;
     }
-
     #overlay {
       position: absolute;
-      bottom: 10px;
-      left: 50%;
+      bottom: 10px; left: 50%;
       transform: translateX(-50%);
-      background: rgba(255, 255, 255, 0.9);
-      padding: 10px;
-      border-radius: 8px;
+      background: rgba(255,255,255,0.9);
+      padding: 10px; border-radius: 8px;
       z-index: 10;
       font-family: sans-serif;
       width: 90%;
       max-width: 500px;
     }
-
     #confidenceBar {
       height: 10px;
       background: #eee;
@@ -43,20 +31,16 @@
       border-radius: 5px;
       overflow: hidden;
     }
-
     #confidenceFill {
       height: 100%;
       width: 0%;
       background: limegreen;
       transition: width 0.5s;
     }
-
     a-scene {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
       z-index: 1;
     }
   </style>
@@ -67,15 +51,21 @@
   <div id="overlay">
     <p id="status">モデル読み込み中...</p>
     <p id="result">分類結果がここに表示されます</p>
-    <div id="confidenceBar">
-      <div id="confidenceFill"></div>
-    </div>
+    <div id="confidenceBar"><div id="confidenceFill"></div></div>
     <button id="predictButton">分類する</button>
   </div>
 
   <a-scene embedded vr-mode-ui="enabled: false">
+    <!-- シロツメクサの3Dモデル代わりのボックス（位置取得用） -->
+    <a-box id="cloverObj" position="0 0 -3" visible="false"></a-box>
+
+    <!-- カメラ -->
+    <a-entity id="cameraRig" position="0 0 0">
+      <a-entity camera look-controls position="0 1.6 0"></a-entity>
+    </a-entity>
+
     <!-- 吹き出し -->
-    <a-entity id="cloverText" visible="false" position="0 0 -2" rotation="0 0 0">
+    <a-entity id="cloverText" visible="false" position="0 0 -2">
       <!-- 黒枠 -->
       <a-plane
         color="#000000"
@@ -94,9 +84,9 @@
         material="shader: flat; opacity: 1"
       ></a-plane>
 
-      <!-- テキスト（日本語対応のため font 属性削除） -->
+      <!-- テキスト -->
       <a-text
-        value="This is White Clover"
+        value="これはシロツメクサだ！"
         color="#111"
         align="center"
         position="0 0 0.01"
@@ -106,26 +96,24 @@
 
       <!-- 黒い三角しっぽ -->
       <a-triangle
+        id="tailBlack"
         color="#000000"
         vertex-a="0 -0.32 0"
         vertex-b="-0.18 -0.55 0"
         vertex-c="0.18 -0.55 0"
-        position="0 0 -0.005"
-        material="shader: flat; opacity: 1"
+        position="0 -0.325 0"
       ></a-triangle>
 
       <!-- 白い三角しっぽ -->
       <a-triangle
+        id="tailWhite"
         color="#ffffff"
         vertex-a="0 -0.3 0"
         vertex-b="-0.15 -0.5 0"
         vertex-c="0.15 -0.5 0"
-        position="0 0 0"
-        material="shader: flat; opacity: 1"
+        position="0 -0.3 0"
       ></a-triangle>
     </a-entity>
-
-    <a-entity camera look-controls></a-entity>
   </a-scene>
 
   <script>
@@ -148,8 +136,70 @@
       });
       video.srcObject = stream;
     }
-
     setupCamera();
+
+    // 補助：2Dキャンバスで左右明暗差から傾きをざっくり計算
+    function estimateYawFromImage(ctx) {
+      const leftData = ctx.getImageData(0, 0, 112, 224).data;
+      const rightData = ctx.getImageData(112, 0, 112, 224).data;
+
+      function avgBrightness(data) {
+        let total = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          total += (data[i] + data[i + 1] + data[i + 2]) / 3;
+        }
+        return total / (data.length / 4);
+      }
+      const leftBrightness = avgBrightness(leftData);
+      const rightBrightness = avgBrightness(rightData);
+      return leftBrightness - rightBrightness; // 差がプラスなら左が明るい→右向きに傾き
+    }
+
+    // カメラ＆オブジェクト座標を取得し、しっぽの向きを調整
+    function updateTailDirection() {
+      const cloverText = document.getElementById('cloverText');
+      const tailBlack = document.getElementById('tailBlack');
+      const tailWhite = document.getElementById('tailWhite');
+      const cloverObj = document.getElementById('cloverObj');
+      const cameraRig = document.getElementById('cameraRig');
+
+      if (!cloverText.getAttribute('visible')) return;
+
+      // 吹き出し位置（ワールド座標）
+      const bubblePos = new THREE.Vector3();
+      cloverText.object3D.getWorldPosition(bubblePos);
+
+      // 対象位置（ワールド座標）
+      const targetPos = new THREE.Vector3();
+      cloverObj.object3D.getWorldPosition(targetPos);
+
+      // 吹き出しの真下にしっぽを置きたいので、しっぽの基準位置は吹き出しの下中央
+      // しっぽの向きは吹き出しから対象へのベクトルを計算してY軸回転
+      const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
+      dir.y = 0; // 水平方向のみ
+
+      if (dir.length() < 0.001) {
+        // ほぼ重なってたら真下に固定
+        tailBlack.setAttribute('rotation', '0 0 0');
+        tailWhite.setAttribute('rotation', '0 0 0');
+        tailBlack.setAttribute('position', '0 -0.325 0');
+        tailWhite.setAttribute('position', '0 -0.3 0');
+        return;
+      }
+
+      dir.normalize();
+
+      // Y軸回転角度を度数法で計算
+      const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+
+      // しっぽは吹き出しの真下に配置し、左右に回転
+      tailBlack.setAttribute('rotation', `0 ${angle} 0`);
+      tailWhite.setAttribute('rotation', `0 ${angle} 0`);
+
+      // しっぽの位置は少し下に置いたまま
+      tailBlack.setAttribute('position', '0 -0.325 0');
+      tailWhite.setAttribute('position', '0 -0.3 0');
+    }
 
     // 分類ボタン処理
     document.getElementById('predictButton').addEventListener('click', () => {
@@ -164,7 +214,7 @@
       const imageData = ctx.getImageData(0, 0, 224, 224);
       const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
-      model.predict(tensor).array().then((predictions) => {
+      model.predict(tensor).array().then(predictions => {
         const scores = predictions[0];
 
         const topResults = scores
@@ -172,42 +222,49 @@
           .sort((a, b) => b.score - a.score)
           .slice(0, 3);
 
-        const resultText = topResults
-          .map((r) => `${r.label}（${(r.score * 100).toFixed(1)}%）`)
-          .join(' / ');
+        const resultText = topResults.map(r =>
+          `${r.label}（${(r.score * 100).toFixed(1)}%）`
+        ).join(' / ');
 
         document.getElementById('result').textContent = `分類結果: ${resultText}`;
         document.getElementById('status').textContent = '分類完了';
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
 
+        const cloverText = document.getElementById('cloverText');
+        const cloverObj = document.getElementById('cloverObj');
+
+        // シロツメクサのとき
         const isClover = topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5;
-        const cloverEntity = document.getElementById('cloverText');
-        cloverEntity.setAttribute('visible', isClover);
 
         if (isClover) {
-          // 角度推定（左右明暗差）で回転
-          const leftData = ctx.getImageData(0, 0, 112, 224).data;
-          const rightData = ctx.getImageData(112, 0, 112, 224).data;
+          cloverText.setAttribute('visible', true);
 
-          const avgBrightness = (data) => {
-            let total = 0;
-            for (let i = 0; i < data.length; i += 4) {
-              const r = data[i],
-                g = data[i + 1],
-                b = data[i + 2];
-              total += (r + g + b) / 3;
-            }
-            return total / (data.length / 4);
-          };
+          // ここではcloverObjの位置をカメラから真ん中少し奥に固定（実際はモデルの位置をここに入れる）
+          // 実機ではここにARの3D検出位置を入れるといいです
+          cloverObj.setAttribute('position', '0 0 -3');
 
-          const leftBrightness = avgBrightness(leftData);
-          const rightBrightness = avgBrightness(rightData);
-          const diff = leftBrightness - rightBrightness;
+          // 吹き出しはカメラの前の固定位置（調整OK）
+          cloverText.setAttribute('position', '0 0 -2');
 
-          const yawAngle = Math.max(-30, Math.min(30, diff / 2));
-          cloverEntity.setAttribute('rotation', `0 ${yawAngle.toFixed(1)} 0`);
+          // しっぽの向き更新
+          updateTailDirection();
+        } else {
+          cloverText.setAttribute('visible', false);
         }
       });
+    });
+
+    // カメラが動いたりしたらしっぽも動かす処理（毎フレーム）
+    AFRAME.registerComponent('tail-update', {
+      tick: function () {
+        updateTailDirection();
+      }
+    });
+
+    // cloverTextに登録して常時しっぽ方向更新
+    document.addEventListener('DOMContentLoaded', () => {
+      const cloverText = document.getElementById('cloverText');
+      cloverText.setAttribute('tail-update', '');
     });
   </script>
 </body>
