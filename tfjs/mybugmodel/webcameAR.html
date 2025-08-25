@@ -18,15 +18,19 @@
       z-index: 0;
     }
 
-    /* UI オーバーレイ */
+    /* UIオーバーレイ（画面下部に表示） */
     #overlay {
       position: absolute;
-      top: 10px; left: 10px;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
       background: rgba(255, 255, 255, 0.9);
       padding: 10px;
       border-radius: 8px;
       z-index: 10;
       font-family: sans-serif;
+      width: 90%;
+      max-width: 500px;
     }
 
     #confidenceBar {
@@ -53,7 +57,7 @@
   <!-- ウェブカメラの全画面表示 -->
   <video id="webcam" autoplay playsinline muted></video>
 
-  <!-- UI オーバーレイ -->
+  <!-- UI オーバーレイ（画面下部） -->
   <div id="overlay">
     <p id="status">モデル読み込み中...</p>
     <p id="result">分類結果がここに表示されます</p>
@@ -67,7 +71,7 @@
     <a-entity camera look-controls>
       <!-- 常に視界中央に表示されるテキスト -->
       <a-entity id="cloverText" visible="false" position="0 0 -1">
-        <a-text value="This is White Clover" color="green" align="center"></a-text>
+        <a-text value="This is White Clover" color="green" align="center" width="1.5"></a-text>
       </a-entity>
     </a-entity>
   </a-scene>
