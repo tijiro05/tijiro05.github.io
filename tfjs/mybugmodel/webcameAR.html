@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>動植物識別AR</title>
+  <title>動植物識別AR（漫画吹き出し対応）</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
   <style>
@@ -61,27 +61,40 @@
   </div>
 
   <a-scene embedded vr-mode-ui="enabled: false">
-    <!-- 吹き出し付きAR表示 -->
+    <!-- 漫画風吹き出しエンティティ -->
     <a-entity id="cloverText" visible="false" position="0 0 -2" rotation="0 0 0">
-      <!-- 吹き出し背景 -->
-      <a-plane color="#ffffff" width="2" height="1"
+      <!-- 背景パネル -->
+      <a-plane color="#ffffff"
+               width="1.4" height="0.6"
                position="0 0 0"
-               material="shader: flat; opacity: 0.9">
+               material="shader: flat; opacity: 1"
+               side="double">
+        <!-- 黒枠（ワイヤーフレーム） -->
+        <a-entity geometry="primitive: plane; width: 1.42; height: 0.62"
+                  material="color: black; wireframe: true"
+                  position="0 0 0.001">
+        </a-entity>
       </a-plane>
 
       <!-- テキスト -->
-      <a-text value="This is White Clover"
-              color="#333"
+      <a-text value="これはシロツメクサだ！"
+              color="#111"
               align="center"
               position="0 0 0.01"
-              width="1.8">
+              width="1.3"
+              font="https://cdn.aframe.io/fonts/Exo2Bold.fnt">
       </a-text>
 
-      <!-- 吹き出しのしっぽ -->
+      <!-- 吹き出しの三角（しっぽ） -->
       <a-triangle color="#ffffff"
-                  vertex-a="0 -0.5 0" vertex-b="-0.2 -0.8 0" vertex-c="0.2 -0.8 0"
-                  position="0 0 0"
-                  material="shader: flat; opacity: 0.9">
+                  vertex-a="0 -0.3 0" vertex-b="-0.15 -0.5 0" vertex-c="0.15 -0.5 0"
+                  material="shader: flat; opacity: 1">
+      </a-triangle>
+
+      <!-- 三角の枠線 -->
+      <a-triangle color="#000000"
+                  vertex-a="0 -0.3 0.001" vertex-b="-0.15 -0.5 0.001" vertex-c="0.15 -0.5 0.001"
+                  material="shader: flat; wireframe: true">
       </a-triangle>
     </a-entity>
 
@@ -94,11 +107,13 @@
     let model;
     const video = document.getElementById('webcam');
 
+    // モデル読み込み
     tf.loadLayersModel(modelPath).then((loadedModel) => {
       model = loadedModel;
       document.getElementById('status').textContent = 'モデル読み込み完了。カメラに映して「分類する」を押してください。';
     });
 
+    // カメラ起動
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
@@ -109,6 +124,7 @@
 
     setupCamera();
 
+    // 分類ボタン処理
     document.getElementById('predictButton').addEventListener('click', () => {
       if (!model) return;
 
@@ -143,7 +159,7 @@
         cloverEntity.setAttribute('visible', isClover);
 
         if (isClover) {
-          // 明るさの差で傾き推定（簡易）
+          // 明暗の差から傾きを推定（左右の光量差で）
           const leftData = ctx.getImageData(0, 0, 112, 224).data;
           const rightData = ctx.getImageData(112, 0, 112, 224).data;
 
