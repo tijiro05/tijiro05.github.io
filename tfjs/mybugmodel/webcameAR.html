@@ -124,7 +124,6 @@
     // モデル読み込み
     tf.loadLayersModel(modelPath).then((loadedModel) => {
       model = loadedModel;
-      // 状態表示は省略しましたが必要ならここに書いてください
     });
 
     // カメラ起動
@@ -200,15 +199,19 @@
         // 吹き出しに分類ラベルだけセット
         bubbleText.setAttribute('value', topLabel);
 
-        // シロツメクサのときだけ吹き出し表示、それ以外は非表示に
         if (topLabel === 'シロツメクサ') {
           cloverText.setAttribute('visible', true);
 
-          // cloverObjはカメラの前3m
+          // cloverObjはカメラの前3mに固定
           cloverObj.setAttribute('position', '0 0 -3');
 
-          // 吹き出しはカメラ前2mに固定
-          cloverText.setAttribute('position', '0 0 -2');
+          // cloverObjの右上に吹き出しを配置
+          const objPos = cloverObj.getAttribute('position');
+          cloverText.setAttribute('position', {
+            x: objPos.x + 0.5,
+            y: objPos.y + 0.5,
+            z: objPos.z
+          });
 
           updateTailDirection();
         } else {
