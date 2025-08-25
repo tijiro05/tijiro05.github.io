@@ -1,16 +1,20 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>動植物識別AR（漫画吹き出し対応）</title>
+  <meta charset="UTF-8" />
+  <title>動植物識別AR（漫画風吹き出し 修正版）</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
 
     #webcam {
       position: absolute;
-      top: 0; left: 0;
+      top: 0;
+      left: 0;
       width: 100vw;
       height: 100vh;
       object-fit: cover;
@@ -32,18 +36,25 @@
     }
 
     #confidenceBar {
-      height: 10px; background: #eee; margin-top: 5px;
-      width: 100%; border-radius: 5px; overflow: hidden;
+      height: 10px;
+      background: #eee;
+      margin-top: 5px;
+      width: 100%;
+      border-radius: 5px;
+      overflow: hidden;
     }
 
     #confidenceFill {
-      height: 100%; width: 0%; background: limegreen;
+      height: 100%;
+      width: 0%;
+      background: limegreen;
       transition: width 0.5s;
     }
 
     a-scene {
       position: absolute;
-      top: 0; left: 0;
+      top: 0;
+      left: 0;
       width: 100vw;
       height: 100vh;
       z-index: 1;
@@ -56,57 +67,65 @@
   <div id="overlay">
     <p id="status">モデル読み込み中...</p>
     <p id="result">分類結果がここに表示されます</p>
-    <div id="confidenceBar"><div id="confidenceFill"></div></div>
+    <div id="confidenceBar">
+      <div id="confidenceFill"></div>
+    </div>
     <button id="predictButton">分類する</button>
   </div>
 
   <a-scene embedded vr-mode-ui="enabled: false">
-   <a-entity id="cloverText" visible="false" position="0 0 -2" rotation="0 0 0">
-  <!-- 吹き出し背景の黒枠 -->
-  <a-plane
-    color="#000000"
-    width="1.45"
-    height="0.65"
-    position="0 0 -0.005"
-    material="shader: flat; opacity: 1">
-  </a-plane>
+    <!-- 吹き出し -->
+    <a-entity id="cloverText" visible="false" position="0 0 -2" rotation="0 0 0">
+      <!-- 黒枠 -->
+      <a-plane
+        color="#000000"
+        width="1.45"
+        height="0.65"
+        position="0 0 -0.005"
+        material="shader: flat; opacity: 1"
+      ></a-plane>
 
-  <!-- 吹き出し本体（白） -->
-  <a-plane
-    color="#ffffff"
-    width="1.4"
-    height="0.6"
-    position="0 0 0"
-    material="shader: flat; opacity: 1">
-  </a-plane>
+      <!-- 白背景 -->
+      <a-plane
+        color="#ffffff"
+        width="1.4"
+        height="0.6"
+        position="0 0 0"
+        material="shader: flat; opacity: 1"
+      ></a-plane>
 
-  <!-- テキスト -->
-  <a-text
-    value="This is White Clover"
-    color="#111"
-    align="center"
-    position="0 0 0.01"
-    width="1.3"
-    font="https://cdn.aframe.io/fonts/Exo2Bold.fnt">
-  </a-text>
+      <!-- テキスト（日本語対応のため font 属性削除） -->
+      <a-text
+        value="これはシロツメクサだ！"
+        color="#111"
+        align="center"
+        position="0 0 0.01"
+        width="1.3"
+        wrap-count="20"
+      ></a-text>
 
-  <!-- 三角しっぽ（黒枠） -->
-  <a-triangle
-    color="#000000"
-    vertex-a="0 -0.32 0" vertex-b="-0.18 -0.55 0" vertex-c="0.18 -0.55 0"
-    position="0 0 -0.005"
-    material="shader: flat; opacity: 1">
-  </a-triangle>
+      <!-- 黒い三角しっぽ -->
+      <a-triangle
+        color="#000000"
+        vertex-a="0 -0.32 0"
+        vertex-b="-0.18 -0.55 0"
+        vertex-c="0.18 -0.55 0"
+        position="0 0 -0.005"
+        material="shader: flat; opacity: 1"
+      ></a-triangle>
 
-  <!-- 三角しっぽ（白） -->
-  <a-triangle
-    color="#ffffff"
-    vertex-a="0 -0.3 0" vertex-b="-0.15 -0.5 0" vertex-c="0.15 -0.5 0"
-    position="0 0 0"
-    material="shader: flat; opacity: 1">
-  </a-triangle>
-</a-entity>
+      <!-- 白い三角しっぽ -->
+      <a-triangle
+        color="#ffffff"
+        vertex-a="0 -0.3 0"
+        vertex-b="-0.15 -0.5 0"
+        vertex-c="0.15 -0.5 0"
+        position="0 0 0"
+        material="shader: flat; opacity: 1"
+      ></a-triangle>
+    </a-entity>
 
+    <a-entity camera look-controls></a-entity>
   </a-scene>
 
   <script>
@@ -125,7 +144,7 @@
     async function setupCamera() {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
-        audio: false
+        audio: false,
       });
       video.srcObject = stream;
     }
@@ -145,7 +164,7 @@
       const imageData = ctx.getImageData(0, 0, 224, 224);
       const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
-      model.predict(tensor).array().then(predictions => {
+      model.predict(tensor).array().then((predictions) => {
         const scores = predictions[0];
 
         const topResults = scores
@@ -153,9 +172,9 @@
           .sort((a, b) => b.score - a.score)
           .slice(0, 3);
 
-        const resultText = topResults.map(r =>
-          `${r.label}（${(r.score * 100).toFixed(1)}%）`
-        ).join(' / ');
+        const resultText = topResults
+          .map((r) => `${r.label}（${(r.score * 100).toFixed(1)}%）`)
+          .join(' / ');
 
         document.getElementById('result').textContent = `分類結果: ${resultText}`;
         document.getElementById('status').textContent = '分類完了';
@@ -163,18 +182,19 @@
 
         const isClover = topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5;
         const cloverEntity = document.getElementById('cloverText');
-
         cloverEntity.setAttribute('visible', isClover);
 
         if (isClover) {
-          // 明暗の差から傾きを推定（左右の光量差で）
+          // 角度推定（左右明暗差）で回転
           const leftData = ctx.getImageData(0, 0, 112, 224).data;
           const rightData = ctx.getImageData(112, 0, 112, 224).data;
 
           const avgBrightness = (data) => {
             let total = 0;
             for (let i = 0; i < data.length; i += 4) {
-              const r = data[i], g = data[i + 1], b = data[i + 2];
+              const r = data[i],
+                g = data[i + 1],
+                b = data[i + 2];
               total += (r + g + b) / 3;
             }
             return total / (data.length / 4);
