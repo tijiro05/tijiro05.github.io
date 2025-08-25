@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>動植物識別AR（マーカーレス）</title>
+  <title>動植物識別AR（傾き対応）</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
   <style>
@@ -41,7 +41,6 @@
       transition: width 0.5s;
     }
 
-    /* A-Frame 全画面設定 */
     a-scene {
       position: absolute;
       top: 0; left: 0;
@@ -52,10 +51,8 @@
   </style>
 </head>
 <body>
-  <!-- ウェブカメラの全画面表示 -->
   <video id="webcam" autoplay playsinline muted></video>
 
-  <!-- UI オーバーレイ（画面下部） -->
   <div id="overlay">
     <p id="status">モデル読み込み中...</p>
     <p id="result">分類結果がここに表示されます</p>
@@ -63,15 +60,17 @@
     <button id="predictButton">分類する</button>
   </div>
 
-  <!-- A-Frame 3D表示 -->
   <a-scene embedded vr-mode-ui="enabled: false">
-    <!-- カメラと3Dテキスト -->
-    <a-entity camera look-controls>
-      <!-- 常に視界中央に表示されるテキスト -->
-      <a-entity id="cloverText" visible="false" position="0 0 -1">
-        <a-text value="This is White Clover" color="green" align="center" width="1.5"></a-text>
-      </a-entity>
+    <!-- シロツメクサ用ARテキスト -->
+    <a-entity id="cloverText" visible="false" position="0 0 -2">
+      <a-text value="This is White Clover"
+              color="green"
+              align="center"
+              width="1.5">
+      </a-text>
     </a-entity>
+
+    <a-entity camera look-controls></a-entity>
   </a-scene>
 
   <script>
@@ -88,7 +87,10 @@
 
     // カメラ起動
     async function setupCamera() {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      });
       video.srcObject = stream;
     }
 
@@ -123,9 +125,35 @@
         document.getElementById('status').textContent = '分類完了';
         document.getElementById('confidenceFill').style.width = `${(topResults[0].score * 100).toFixed(1)}%`;
 
-        // シロツメクサのとき表示
-        const cloverVisible = topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5;
-        document.getElementById('cloverText').setAttribute('visible', cloverVisible);
+        const isClover = topResults[0].label === 'シロツメクサ' && topResults[0].score > 0.5;
+        const cloverEntity = document.getElementById('cloverText');
+
+        cloverEntity.setAttribute('visible', isClover);
+
+        if (isClover) {
+          //明暗の左右差から傾きを推定（擬似的）
+          const leftData = ctx.getImageData(0, 0, 112, 224).data;
+          const rightData = ctx.getImageData(112, 0, 112, 224).data;
+
+          const avgBrightness = (data) => {
+            let total = 0;
+            for (let i = 0; i < data.length; i += 4) {
+              const r = data[i], g = data[i + 1], b = data[i + 2];
+              total += (r + g + b) / 3;
+            }
+            return total / (data.length / 4);
+          };
+
+          const leftBrightness = avgBrightness(leftData);
+          const rightBrightness = avgBrightness(rightData);
+          const diff = leftBrightness - rightBrightness;
+
+          // -30度〜+30度の範囲で回転
+          const yawAngle = Math.max(-30, Math.min(30, diff / 2));
+
+          // テキストの角度を設定（y軸回転）
+          cloverEntity.setAttribute('rotation', `0 ${yawAngle.toFixed(1)} 0`);
+        }
       });
     });
   </script>
