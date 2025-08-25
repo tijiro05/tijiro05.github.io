@@ -130,17 +130,25 @@
       const tailBlack = document.getElementById('tailBlack');
       const tailWhite = document.getElementById('tailWhite');
       const cloverObj = document.getElementById('cloverObj');
-
+    
       if (!cloverText.getAttribute('visible')) return;
-
-      const bubblePos = new THREE.Vector3();
-      cloverText.object3D.getWorldPosition(bubblePos);
-      const targetPos = new THREE.Vector3();
-      cloverObj.object3D.getWorldPosition(targetPos);
-
-      const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-      dir.y = 0;
-
+    
+      // Clover の位置取得
+      const cloverWorldPos = new THREE.Vector3();
+      cloverObj.object3D.getWorldPosition(cloverWorldPos);
+    
+      // 吹き出し位置更新（Cloverの右上に表示）
+      const offset = new THREE.Vector3(0.5, 0.5, 0); // 相対オフセット（必要に応じて調整）
+      const newBubblePos = cloverWorldPos.clone().add(offset);
+      cloverText.object3D.position.copy(newBubblePos);
+    
+      // 吹き出しから Clover に向く方向を計算
+      const bubbleWorldPos = new THREE.Vector3();
+      cloverText.object3D.getWorldPosition(bubbleWorldPos);
+    
+      const dir = new THREE.Vector3().subVectors(cloverWorldPos, bubbleWorldPos);
+      dir.y = 0; // 水平方向のみ
+    
       if (dir.length() < 0.001) {
         tailBlack.setAttribute('rotation', '0 0 0');
         tailWhite.setAttribute('rotation', '0 0 0');
@@ -148,14 +156,16 @@
         tailWhite.setAttribute('position', '0 -0.525 0');
         return;
       }
-
+    
       dir.normalize();
       const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+    
       tailBlack.setAttribute('rotation', `0 ${angle} 0`);
       tailWhite.setAttribute('rotation', `0 ${angle} 0`);
       tailBlack.setAttribute('position', '0 -0.575 0');
       tailWhite.setAttribute('position', '0 -0.525 0');
-    }
+}
+
 
     // 分類ボタン
     document.getElementById('predictButton').addEventListener('click', () => {
