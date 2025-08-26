@@ -17,7 +17,7 @@
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 5;
-            pointer-events: none; /* ← タッチを遮らない */
+            pointer-events: none; /* タッチを遮らない */
         }
         #controlPanel {
             position: absolute;
@@ -33,7 +33,7 @@
             display: flex;
             justify-content: space-around;
             gap: 10px;
-            pointer-events: auto; /* ← タッチを有効化 */
+            pointer-events: auto; /* タッチを有効化 */
         }
         #controlPanel * {
             pointer-events: auto; /* 子要素もタッチ可に */
@@ -58,8 +58,7 @@
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 1;
-            touch-action: none;
-            pointer-events: auto; /* ← A-Frameも操作可能に */
+            pointer-events: none; /* A-Frameのタッチイベントを無効化 */
         }
     </style>
 </head>
@@ -196,7 +195,7 @@
             const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
             model.predict(tensor).array().then(predictions => {
-                                const scores = predictions ? predictions.flat() : [];
+                const scores = predictions ? predictions.flat() : [];
                 const topResultIndex = scores.indexOf(Math.max(...scores));
                 const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
 
@@ -264,4 +263,3 @@
     </script>
 </body>
 </html>
-
