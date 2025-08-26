@@ -7,6 +7,7 @@
     <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
     <style>
+        /* ... （前回のCSSコードはそのまま） ... */
         body { margin: 0; overflow: hidden; }
         #webcam {
             position: absolute; top: 0; left: 0;
@@ -16,8 +17,8 @@
         #drawingCanvas {
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
-            z-index: 5; /* 映像やA-Frameより手前に表示 */
-            pointer-events: auto; /* タッチイベントを有効にする */
+            z-index: 5;
+            pointer-events: auto;
         }
         #controlPanel {
             position: absolute;
@@ -33,10 +34,6 @@
             display: flex;
             justify-content: space-around;
             gap: 10px;
-            pointer-events: auto;
-        }
-        #controlPanel * {
-            pointer-events: auto;
         }
         #predictButton, #clearButton {
             padding: 10px 20px;
@@ -57,32 +54,74 @@
             position: absolute;
             top: 0; left: 0;
             width: 100vw; height: 100vh;
-            z-index: 1; /* 描画キャンバスの下に表示 */
-            pointer-events: none; /* タッチイベントを無効にする */
+            z-index: 1;
         }
     </style>
 </head>
 <body>
     <video id="webcam" autoplay playsinline muted></video>
     <canvas id="drawingCanvas"></canvas>
-
+    
     <div id="controlPanel">
         <button id="predictButton" disabled>分類する</button>
         <button id="clearButton">消去</button>
     </div>
 
     <a-scene embedded vr-mode-ui="enabled: false">
-        <a-box id="cloverObj" position="0 0 -1" visible="false"></a-box>
+        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5"></a-box>
+
         <a-entity id="cameraRig" position="0 0 0">
             <a-entity camera look-controls position="0 1.6 0"></a-entity>
         </a-entity>
+
         <a-assets>
             <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
         </a-assets>
+
         <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
-            <a-plane color="#3D5348" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
-            <a-plane color="#476255" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
-            <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
+            <a-plane
+                color="#3D5348"
+                width="2.5"
+                height="1.2"
+                position="0 0 -0.005"
+                material="shader: flat; opacity: 1"
+            ></a-plane>
+
+            <a-plane
+                color="#476255"
+                width="2.4"
+                height="1.1"
+                position="0 0 0"
+                material="shader: flat; opacity: 1"
+            ></a-plane>
+
+            <a-troika-text
+                id="bubbleText"
+                font="#notojpFont"
+                value="ここに結果が表示されます"
+                font-size="0.12"
+                color="#FFFFFF"
+                textAlign="center"
+                position="0 0 0.01"
+            ></a-troika-text>
+
+            <a-triangle
+                id="tailBlack"
+                color="#3D5348"
+                vertex-a="0 -0.62 0"
+                vertex-b="-0.3 -0.9 0"
+                vertex-c="0.3 -0.9 0"
+                position="0 -0.575 0"
+            ></a-triangle>
+
+            <a-triangle
+                id="tailWhite"
+                color="#476255"
+                vertex-a="0 -0.55 0"
+                vertex-b="-0.27 -0.85 0"
+                vertex-c="0.27 -0.85 0"
+                position="0 -0.525 0"
+            ></a-triangle>
         </a-entity>
     </a-scene>
 
@@ -103,162 +142,177 @@
             drawingCanvas.width = video.offsetWidth;
             drawingCanvas.height = video.offsetHeight;
         }
+        window.addEventListener('resize', resizeCanvas);
+        video.addEventListener('loadedmetadata', resizeCanvas);
 
         tf.loadLayersModel(modelPath).then((loadedModel) => {
             model = loadedModel;
         });
 
         async function setupCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' },
-                    audio: false,
-                });
-                video.srcObject = stream;
-            } catch (err) {
-                console.error("カメラへのアクセスに失敗しました: ", err);
-            }
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false,
+            });
+            video.srcObject = stream;
         }
+        setupCamera();
 
-        // 初期描画設定
         ctx.strokeStyle = '#007bff';
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        function initializeApp() {
-            video.addEventListener('play', () => {
-                resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
-            });
+        drawingCanvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            e.preventDefault();
+            isDrawing = true;
+            const touch = e.touches[0];
+            const x = touch.clientX;
+            const y = touch.clientY;
+            points = [{x: x, y: y}];
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        });
 
-            drawingCanvas.addEventListener('touchstart', (e) => {
-                if (e.touches.length !== 1) return;
-                isDrawing = true;
-                const touch = e.touches[0];
-                const x = touch.clientX;
-                const y = touch.clientY;
-                points = [{ x, y }];
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-            });
-
-            drawingCanvas.addEventListener('touchmove', (e) => {
-                if (!isDrawing || e.touches.length !== 1) return;
-                e.preventDefault();
-                const touch = e.touches[0];
-                const x = touch.clientX;
-                const y = touch.clientY;
-                points.push({ x, y });
-                ctx.lineTo(x, y);
-                ctx.stroke();
-                predictButton.disabled = false;
-            });
+        drawingCanvas.addEventListener('touchmove', (e) => {
+            if (!isDrawing || e.touches.length !== 1) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const x = touch.clientX;
+            const y = touch.clientY;
+            points.push({x: x, y: y});
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            predictButton.disabled = false;
+        });
 
         drawingCanvas.addEventListener('touchend', () => {
             isDrawing = false;
             ctx.closePath();
         });
-    }
 
-    clearButton.addEventListener('click', () => {
-        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        points = [];
-        predictButton.disabled = true;
-    });
-
-    predictButton.addEventListener('click', () => {
-        if (!model || points.length < 2) return;
-
-        const minX = Math.min(...points.map(p => p.x));
-        const minY = Math.min(...points.map(p => p.y));
-        const maxX = Math.max(...points.map(p => p.x));
-        const maxY = Math.max(...points.map(p => p.y));
-        const width = maxX - minX;
-        const height = maxY - minY;
-        if (width <= 0 || height <= 0) return;
-
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = width;
-        tempCanvas.height = height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
-
-        const resizedCanvas = document.createElement('canvas');
-        resizedCanvas.width = 224;
-        resizedCanvas.height = 224;
-        const resizedCtx = resizedCanvas.getContext('2d');
-        resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
-
-        const imageData = resizedCtx.getImageData(0, 0, 224, 224);
-        const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
-
-        model.predict(tensor).array().then(predictions => {
-            const scores = predictions ? predictions.flat() : [];
-            const topResultIndex = scores.indexOf(Math.max(...scores));
-            const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
-
-            const cloverText = document.getElementById('cloverText');
-            const bubbleText = document.getElementById('bubbleText');
-            const cloverObj = document.getElementById('cloverObj');
-
-            bubbleText.setAttribute('value', topLabel);
-
-            if (topLabel === 'シロツメクサ') {
-                cloverText.setAttribute('visible', true);
-                bubbleText.setAttribute('font-size', '0.12');
-                bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
-
-                const camera = document.querySelector('a-entity[camera]');
-                const cameraWorldPosition = new THREE.Vector3();
-                camera.object3D.getWorldPosition(cameraWorldPosition);
-                const targetPosition = new THREE.Vector3(0, 0, -1.5);
-                targetPosition.applyQuaternion(camera.object3D.quaternion);
-                targetPosition.add(cameraWorldPosition);
-                cloverObj.setAttribute('position', targetPosition);
-                cloverObj.setAttribute('visible', true);
-
-                const objPos = cloverObj.getAttribute('position');
-                cloverText.setAttribute('position', {
-                    x: objPos.x + 0.3,
-                    y: objPos.y + 0.5,
-                    z: objPos.z + 0.1
-                });
-            } else {
-                cloverText.setAttribute('visible', false);
-                cloverObj.setAttribute('visible', false);
-            }
-
+        clearButton.addEventListener('click', () => {
             ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             points = [];
             predictButton.disabled = true;
         });
-    });
 
-    function requestDeviceMotionPermission() {
-        if (typeof DeviceMotionEvent?.requestPermission === 'function') {
-            DeviceMotionEvent.requestPermission()
-                .then(permissionState => {
-                    initializeApp();
-                })
-                .catch((err) => {
-                    console.error('センサーパーミッションエラー:', err);
-                    initializeApp(); // 拒否されても初期化
-                });
-        } else {
-            console.log('このブラウザは requestPermission をサポートしていません。');
-            initializeApp();
+        predictButton.addEventListener('click', () => {
+            if (!model || points.length < 2) return;
+
+            const minX = Math.min(...points.map(p => p.x));
+            const minY = Math.min(...points.map(p => p.y));
+            const maxX = Math.max(...points.map(p => p.x));
+            const maxY = Math.max(...points.map(p => p.y));
+
+            const width = maxX - minX;
+            const height = maxY - minY;
+
+            if (width <= 0 || height <= 0) return;
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+
+            const resizedCanvas = document.createElement('canvas');
+            resizedCanvas.width = 224;
+            resizedCanvas.height = 224;
+            const resizedCtx = resizedCanvas.getContext('2d');
+            resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
+
+            const imageData = resizedCtx.getImageData(0, 0, 224, 224);
+            const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
+
+            model.predict(tensor).array().then(predictions => {
+                const scores = predictions ? predictions.flat() : [];
+                const topResultIndex = scores.indexOf(Math.max(...scores));
+                const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
+
+                const cloverText = document.getElementById('cloverText');
+                const bubbleText = document.getElementById('bubbleText');
+                const cloverObj = document.getElementById('cloverObj');
+
+                bubbleText.setAttribute('value', topLabel);
+                
+                if (topLabel === 'シロツメクサ') {
+                    cloverText.setAttribute('visible', true);
+                    bubbleText.setAttribute('font-size', '0.12');
+                    bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
+
+                    const camera = document.querySelector('a-entity[camera]');
+                    const cameraWorldPosition = new THREE.Vector3();
+                    camera.object3D.getWorldPosition(cameraWorldPosition);
+                    const targetPosition = new THREE.Vector3(0, 0, -1.5);
+                    targetPosition.applyQuaternion(camera.object3D.quaternion);
+                    targetPosition.add(cameraWorldPosition);
+                    cloverObj.setAttribute('position', targetPosition);
+                    cloverObj.setAttribute('visible', true);
+
+                    const objPos = cloverObj.getAttribute('position');
+                    cloverText.setAttribute('position', {
+                        x: objPos.x + 0.3,
+                        y: objPos.y + 0.5,
+                        z: objPos.z + 0.1
+                    });
+                } else {
+                    cloverText.setAttribute('visible', false);
+                    cloverObj.setAttribute('visible', false);
+                }
+
+                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                points = [];
+                predictButton.disabled = true;
+            });
+        });
+
+        function updateTailDirection() {
+            const cloverText = document.getElementById('cloverText');
+            const tailBlack = document.getElementById('tailBlack');
+            const tailWhite = document.getElementById('tailWhite');
+            const cloverObj = document.getElementById('cloverObj');
+
+            if (!cloverText.getAttribute('visible') || !cloverObj.getAttribute('visible')) return;
+
+            const bubblePos = new THREE.Vector3();
+            cloverText.object3D.getWorldPosition(bubblePos);
+
+            const targetPos = new THREE.Vector3();
+            cloverObj.object3D.getWorldPosition(targetPos);
+
+            const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
+            dir.y = 0;
+
+            if (dir.length() < 0.001) {
+                tailBlack.setAttribute('rotation', '0 0 0');
+                tailWhite.setAttribute('rotation', '0 0 0');
+                tailBlack.setAttribute('position', '0 -0.575 0');
+                tailWhite.setAttribute('position', '0 -0.525 0');
+                return;
+            }
+
+            dir.normalize();
+            const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+
+            tailBlack.setAttribute('rotation', `0 ${angle} 0`);
+            tailWhite.setAttribute('rotation', `0 ${angle} 0`);
+
+            tailBlack.setAttribute('position', '0 -0.575 0');
+            tailWhite.setAttribute('position', '0 -0.525 0');
         }
-    }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        setupCamera();
-        const initialTouchHandler = () => {
-            requestDeviceMotionPermission();
-            document.removeEventListener('touchstart', initialTouchHandler);
-        };
-        document.addEventListener('touchstart', initialTouchHandler);
-    });
+        AFRAME.registerComponent('tail-update', {
+            tick: function () {
+                updateTailDirection();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cloverText = document.getElementById('cloverText');
+            cloverText.setAttribute('tail-update', '');
+        });
     </script>
 </body>
 </html>
