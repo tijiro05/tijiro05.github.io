@@ -4,11 +4,13 @@
     <meta charset="UTF-8" />
     <title>動植物識別AR</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     <script>
-    // A-FrameがVR/ARモードを自動的に開始するのを防ぐ
-    AFRAME.components['webxr'].schema.requiredFeatures.default = [];
+    if (window.AFRAME) 
+    {
+        window.AFRAME.components['webxr'] = undefined;
+    }
     </script>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
     <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
     <style>
         /* ... （前回のCSSコードはそのまま） ... */
