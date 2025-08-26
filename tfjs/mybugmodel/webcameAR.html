@@ -257,32 +257,37 @@
                     return;
                 }
 
-                if (topLabel === 'シロツメクサ') {
-                    cloverText.setAttribute('visible', true);
-                    bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
-
-                    const camera = document.querySelector('#mainCamera');
-                    if (camera) {
-                        const cameraWorldPosition = new THREE.Vector3();
-                        camera.object3D.getWorldPosition(cameraWorldPosition);
-                        const targetPosition = new THREE.Vector3(0, 0, -1.5);
-                        targetPosition.applyQuaternion(camera.object3D.quaternion);
-                        targetPosition.add(cameraWorldPosition);
-                        cloverObj.setAttribute('position', targetPosition);
-                        cloverObj.setAttribute('visible', true);
-
-                        const objPos = cloverObj.getAttribute('position');
-                        cloverText.setAttribute('position', {
-                            x: objPos.x + 0.3,
-                            y: objPos.y + 0.5,
-                            z: objPos.z + 0.1
-                        });
-                    }
-                } else {
-                    cloverText.setAttribute('visible', false);
-                    cloverObj.setAttribute('visible', false);
-                    bubbleText.setAttribute('value', topLabel);
-                }
+       if (topLabel === 'シロツメクサ') {
+            const camera = document.querySelector('#mainCamera');
+            if (camera) {
+                const cameraWorldPosition = new THREE.Vector3();
+                camera.object3D.getWorldPosition(cameraWorldPosition);
+        
+                const targetPosition = new THREE.Vector3(0, 0, -1.5);
+                targetPosition.applyQuaternion(camera.object3D.quaternion);
+                targetPosition.add(cameraWorldPosition);
+        
+                // クローバーオブジェクトの位置設定
+                cloverObj.setAttribute('position', targetPosition);
+                cloverObj.setAttribute('visible', true);
+        
+                // 黒板をクローバーの近くに配置
+                const objPos = cloverObj.getAttribute('position');
+                cloverText.setAttribute('position', {
+                    x: objPos.x + 0.3,
+                    y: objPos.y + 0.5,
+                    z: objPos.z + 0.1
+                });
+        
+                // 黒板と文字をこのタイミングで表示
+                bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
+                cloverText.setAttribute('visible', true);
+            }
+        } else {
+            cloverText.setAttribute('visible', true);   // ← ここも false ではなく true
+            cloverObj.setAttribute('visible', false);
+            bubbleText.setAttribute('value', topLabel);
+        }
 
                 ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
                 points = [];
