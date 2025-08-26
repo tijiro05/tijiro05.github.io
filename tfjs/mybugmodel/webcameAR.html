@@ -17,8 +17,7 @@
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 5;
-            touch-action: none; /* ← ここに touch-action を追加 */
-            pointer-events: auto; /* ← ここに pointer-events を追加 */
+            pointer-events: auto; /* タッチイベントを有効化 */
         }
         #controlPanel {
             position: absolute;
@@ -34,10 +33,10 @@
             display: flex;
             justify-content: space-around;
             gap: 10px;
-            pointer-events: auto; /* タッチを有効化 */
+            pointer-events: auto;
         }
         #controlPanel * {
-            pointer-events: auto; /* 子要素もタッチ可に */
+            pointer-events: auto;
         }
         #predictButton, #clearButton {
             padding: 10px 20px;
@@ -59,6 +58,7 @@
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 1;
+            pointer-events: none; /* A-Frameのタッチイベントを無効化 */
         }
     </style>
 </head>
@@ -132,7 +132,6 @@
             });
 
             drawingCanvas.addEventListener('touchstart', (e) => {
-                // e.preventDefault(); // ← この行が原因で、A-Frameの操作も無効化される
                 if (e.touches.length !== 1) return;
                 isDrawing = true;
                 const touch = e.touches[0];
@@ -155,110 +154,110 @@
                 predictButton.disabled = false;
             });
 
-            drawingCanvas.addEventListener('touchend', () => {
-                isDrawing = false;
-                ctx.closePath();
-            });
-        }
+        drawingCanvas.addEventListener('touchend', () => {
+            isDrawing = false;
+            ctx.closePath();
+        });
+    }
 
-        clearButton.addEventListener('click', () => {
+    clearButton.addEventListener('click', () => {
+        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        points = [];
+        predictButton.disabled = true;
+    });
+
+    predictButton.addEventListener('click', () => {
+        if (!model || points.length < 2) return;
+
+        const minX = Math.min(...points.map(p => p.x));
+        const minY = Math.min(...points.map(p => p.y));
+        const maxX = Math.max(...points.map(p => p.x));
+        const maxY = Math.max(...points.map(p => p.y));
+        const width = maxX - minX;
+        const height = maxY - minY;
+        if (width <= 0 || height <= 0) return;
+
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+
+        const resizedCanvas = document.createElement('canvas');
+        resizedCanvas.width = 224;
+        resizedCanvas.height = 224;
+        const resizedCtx = resizedCanvas.getContext('2d');
+        resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
+
+        const imageData = resizedCtx.getImageData(0, 0, 224, 224);
+        const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
+
+        model.predict(tensor).array().then(predictions => {
+            const scores = predictions ? predictions.flat() : [];
+            const topResultIndex = scores.indexOf(Math.max(...scores));
+            const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
+
+            const cloverText = document.getElementById('cloverText');
+            const bubbleText = document.getElementById('bubbleText');
+            const cloverObj = document.getElementById('cloverObj');
+
+            bubbleText.setAttribute('value', topLabel);
+
+            if (topLabel === 'シロツメクサ') {
+                cloverText.setAttribute('visible', true);
+                bubbleText.setAttribute('font-size', '0.12');
+                bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
+
+                const camera = document.querySelector('a-entity[camera]');
+                const cameraWorldPosition = new THREE.Vector3();
+                camera.object3D.getWorldPosition(cameraWorldPosition);
+                const targetPosition = new THREE.Vector3(0, 0, -1.5);
+                targetPosition.applyQuaternion(camera.object3D.quaternion);
+                targetPosition.add(cameraWorldPosition);
+                cloverObj.setAttribute('position', targetPosition);
+                cloverObj.setAttribute('visible', true);
+
+                const objPos = cloverObj.getAttribute('position');
+                cloverText.setAttribute('position', {
+                    x: objPos.x + 0.3,
+                    y: objPos.y + 0.5,
+                    z: objPos.z + 0.1
+                });
+            } else {
+                cloverText.setAttribute('visible', false);
+                cloverObj.setAttribute('visible', false);
+            }
+
             ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             points = [];
             predictButton.disabled = true;
         });
+    });
 
-        predictButton.addEventListener('click', () => {
-            if (!model || points.length < 2) return;
-
-            const minX = Math.min(...points.map(p => p.x));
-            const minY = Math.min(...points.map(p => p.y));
-            const maxX = Math.max(...points.map(p => p.x));
-            const maxY = Math.max(...points.map(p => p.y));
-            const width = maxX - minX;
-            const height = maxY - minY;
-            if (width <= 0 || height <= 0) return;
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = width;
-            tempCanvas.height = height;
-            const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
-
-            const resizedCanvas = document.createElement('canvas');
-            resizedCanvas.width = 224;
-            resizedCanvas.height = 224;
-            const resizedCtx = resizedCanvas.getContext('2d');
-            resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
-
-            const imageData = resizedCtx.getImageData(0, 0, 224, 224);
-            const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
-
-            model.predict(tensor).array().then(predictions => {
-                const scores = predictions ? predictions.flat() : [];
-                const topResultIndex = scores.indexOf(Math.max(...scores));
-                const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
-
-                const cloverText = document.getElementById('cloverText');
-                const bubbleText = document.getElementById('bubbleText');
-                const cloverObj = document.getElementById('cloverObj');
-
-                bubbleText.setAttribute('value', topLabel);
-
-                if (topLabel === 'シロツメクサ') {
-                    cloverText.setAttribute('visible', true);
-                    bubbleText.setAttribute('font-size', '0.12');
-                    bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
-
-                    const camera = document.querySelector('a-entity[camera]');
-                    const cameraWorldPosition = new THREE.Vector3();
-                    camera.object3D.getWorldPosition(cameraWorldPosition);
-                    const targetPosition = new THREE.Vector3(0, 0, -1.5);
-                    targetPosition.applyQuaternion(camera.object3D.quaternion);
-                    targetPosition.add(cameraWorldPosition);
-                    cloverObj.setAttribute('position', targetPosition);
-                    cloverObj.setAttribute('visible', true);
-
-                    const objPos = cloverObj.getAttribute('position');
-                    cloverText.setAttribute('position', {
-                        x: objPos.x + 0.3,
-                        y: objPos.y + 0.5,
-                        z: objPos.z + 0.1
-                    });
-                } else {
-                    cloverText.setAttribute('visible', false);
-                    cloverObj.setAttribute('visible', false);
-                }
-
-                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                points = [];
-                predictButton.disabled = true;
-            });
-        });
-
-        function requestDeviceMotionPermission() {
-            if (typeof DeviceMotionEvent?.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission()
-                    .then(permissionState => {
-                        initializeApp();
-                    })
-                    .catch((err) => {
-                        console.error('センサーパーミッションエラー:', err);
-                        initializeApp(); // 拒否されても初期化
-                    });
-            } else {
-                console.log('このブラウザは requestPermission をサポートしていません。');
-                initializeApp();
-            }
+    function requestDeviceMotionPermission() {
+        if (typeof DeviceMotionEvent?.requestPermission === 'function') {
+            DeviceMotionEvent.requestPermission()
+                .then(permissionState => {
+                    initializeApp();
+                })
+                .catch((err) => {
+                    console.error('センサーパーミッションエラー:', err);
+                    initializeApp(); // 拒否されても初期化
+                });
+        } else {
+            console.log('このブラウザは requestPermission をサポートしていません。');
+            initializeApp();
         }
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            setupCamera();
-            const initialTouchHandler = () => {
-                requestDeviceMotionPermission();
-                document.removeEventListener('touchstart', initialTouchHandler);
-            };
-            document.addEventListener('touchstart', initialTouchHandler);
-        });
+    document.addEventListener('DOMContentLoaded', () => {
+        setupCamera();
+        const initialTouchHandler = () => {
+            requestDeviceMotionPermission();
+            document.removeEventListener('touchstart', initialTouchHandler);
+        };
+        document.addEventListener('touchstart', initialTouchHandler);
+    });
     </script>
 </body>
 </html>
