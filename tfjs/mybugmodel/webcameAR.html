@@ -17,7 +17,8 @@
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 5;
-            pointer-events: none; /* タッチを遮らない */
+            touch-action: none; /* ← ここに touch-action を追加 */
+            pointer-events: auto; /* ← ここに pointer-events を追加 */
         }
         #controlPanel {
             position: absolute;
@@ -58,7 +59,6 @@
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 1;
-            pointer-events: none; /* A-Frameのタッチイベントを無効化 */
         }
     </style>
 </head>
@@ -95,7 +95,6 @@
         const ctx = drawingCanvas.getContext('2d');
         const predictButton = document.getElementById('predictButton');
         const clearButton = document.getElementById('clearButton');
-        const aScene = document.querySelector('a-scene');
 
         let isDrawing = false;
         let points = [];
@@ -133,8 +132,8 @@
             });
 
             drawingCanvas.addEventListener('touchstart', (e) => {
+                // e.preventDefault(); // ← この行が原因で、A-Frameの操作も無効化される
                 if (e.touches.length !== 1) return;
-                e.preventDefault();
                 isDrawing = true;
                 const touch = e.touches[0];
                 const x = touch.clientX;
