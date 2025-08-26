@@ -75,20 +75,24 @@
             <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
         </a-assets>
         <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
-            <a-plane
-                color="#3D5348"
+            <!-- 枠（木のフレーム風） -->
+              <a-plane
+                color="#5A3E2B"
+                width="2.7"
+                height="1.4"
+                position="0 0 -0.01"
+                material="shader: flat"
+              ></a-plane>
+            
+              <!-- 黒板背景 -->
+              <a-plane
+                color="#2E4E3F"
                 width="2.5"
                 height="1.2"
-                position="0 0 -0.005"
-                material="shader: flat; opacity: 1"
-            ></a-plane>
-            <a-plane
-                color="#476255"
-                width="2.4"
-                height="1.1"
                 position="0 0 0"
-                material="shader: flat; opacity: 1"
-            ></a-plane>
+                material="shader: flat"
+              ></a-plane>
+
             <a-troika-text
                 id="bubbleText"
                 font="#notojpFont"
