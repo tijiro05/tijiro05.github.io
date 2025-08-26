@@ -17,7 +17,7 @@
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 5;
-            pointer-events: none; /* ← 初期は無効化 */
+            pointer-events: none;
         }
         #controlPanel {
             position: absolute;
@@ -30,7 +30,7 @@
             width: 90%;
             max-width: 500px;
             text-align: center;
-            display: none; /* 初期状態では非表示 */
+            display: none;
             justify-content: space-around;
             gap: 10px;
         }
@@ -60,21 +60,21 @@
 <body>
     <video id="webcam" autoplay playsinline muted></video>
     <canvas id="drawingCanvas"></canvas>
-    
+
     <div id="controlPanel">
         <button id="predictButton" disabled>分類する</button>
         <button id="clearButton">消去</button>
     </div>
 
     <a-scene embedded vr-mode-ui="enabled: false" ar-mode="false">
-        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5"></a-box>
+        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5" look-at="#cameraRig"></a-box>
         <a-entity id="cameraRig" position="0 0 0">
             <a-entity camera look-controls position="0 1.6 0"></a-entity>
         </a-entity>
         <a-assets>
             <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
         </a-assets>
-        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
+        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5" look-at="#cameraRig">
             <a-plane
                 color="#3D5348"
                 width="2.5"
@@ -150,23 +150,20 @@
                 });
                 video.srcObject = stream;
                 
-                // カメラの映像が読み込まれたらボタンを表示
                 video.addEventListener('loadedmetadata', async () => {
                     controlPanel.style.display = 'flex';
 
-                    // iOS Safari の場合、センサー許可が必要
                     if (typeof DeviceOrientationEvent !== "undefined" &&
                         typeof DeviceOrientationEvent.requestPermission === "function") {
                         try {
                             const res = await DeviceOrientationEvent.requestPermission();
                             if (res === "granted") {
-                                drawingCanvas.style.pointerEvents = "auto"; // 許可後に有効化
+                                drawingCanvas.style.pointerEvents = "auto";
                             }
                         } catch (e) {
                             console.warn("センサー許可が拒否されました:", e);
                         }
                     } else {
-                        // Android / PC などはセンサー許可不要
                         drawingCanvas.style.pointerEvents = "auto";
                     }
                 });
@@ -278,50 +275,6 @@
                 points = [];
                 predictButton.disabled = true;
             });
-        });
-        
-        AFRAME.registerComponent('tail-update', {
-            tick: function () {
-                const cloverText = document.getElementById('cloverText');
-                const tailBlack = document.getElementById('tailBlack');
-                const tailWhite = document.getElementById('tailWhite');
-                const cloverObj = document.getElementById('cloverObj');
-
-                if (!cloverText || !tailBlack || !tailWhite || !cloverObj || !cloverText.getAttribute('visible') || !cloverObj.getAttribute('visible')) return;
-                
-                const bubblePos = new THREE.Vector3();
-                cloverText.object3D.getWorldPosition(bubblePos);
-
-                const targetPos = new THREE.Vector3();
-                cloverObj.object3D.getWorldPosition(targetPos);
-
-                const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-                dir.y = 0;
-
-                if (dir.length() < 0.001) {
-                    tailBlack.setAttribute('rotation', '0 0 0');
-                    tailWhite.setAttribute('rotation', '0 0 0');
-                    tailBlack.setAttribute('position', '0 -0.575 0');
-                    tailWhite.setAttribute('position', '0 -0.525 0');
-                    return;
-                }
-                
-                dir.normalize();
-                const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-
-                tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-                tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-
-                tailBlack.setAttribute('position', '0 -0.575 0');
-                tailWhite.setAttribute('position', '0 -0.525 0');
-            }
-        });
-        
-        document.addEventListener('DOMContentLoaded', () => {
-            const cloverText = document.getElementById('cloverText');
-            if (cloverText) {
-                cloverText.setAttribute('tail-update', '');
-            }
         });
     </script>
 </body>
