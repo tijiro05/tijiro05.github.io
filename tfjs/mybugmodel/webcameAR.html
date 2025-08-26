@@ -251,18 +251,13 @@
                 
                 if (topLabel === 'シロツメクサ') {
                     cloverText.setAttribute('visible', true);
-                    bubbleText.setAttribute('font-size', '0.12');
+                    bubbleText.setAttribute('font-size', '0.12'); 
+
                     bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
 
-                    // ARオブジェクトをカメラの少し前に配置
-                    const camera = document.querySelector('a-entity[camera]');
-                    const cameraWorldPosition = new THREE.Vector3();
-                    camera.object3D.getWorldPosition(cameraWorldPosition);
-                    const targetPosition = new THREE.Vector3(0, 0, -1.5);
-                    targetPosition.applyQuaternion(camera.object3D.quaternion);
-                    targetPosition.add(cameraWorldPosition);
-                    cloverObj.setAttribute('position', targetPosition);
-                    cloverObj.setAttribute('visible', true);
+                   // cloverObjはカメラの前3mに固定
+                    cloverObj.setAttribute('position', '0 0 -3');
+
 
                     const objPos = cloverObj.getAttribute('position');
                     cloverText.setAttribute('position', {
