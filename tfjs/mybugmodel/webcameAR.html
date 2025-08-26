@@ -54,7 +54,6 @@
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 1;
-            /* 初期状態ではタッチイベントを無効化 */
             touch-action: none;
             pointer-events: none;
         }
@@ -81,31 +80,9 @@
         </a-assets>
 
         <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
-            <a-plane
-                color="#3D5348"
-                width="2.5"
-                height="1.2"
-                position="0 0 -0.005"
-                material="shader: flat; opacity: 1"
-            ></a-plane>
-
-            <a-plane
-                color="#476255"
-                width="2.4"
-                height="1.1"
-                position="0 0 0"
-                material="shader: flat; opacity: 1"
-            ></a-plane>
-
-            <a-troika-text
-                id="bubbleText"
-                font="#notojpFont"
-                value="ここに結果が表示されます"
-                font-size="0.12"
-                color="#FFFFFF"
-                textAlign="center"
-                position="0 0 0.01"
-            ></a-troika-text>
+            <a-plane color="#3D5348" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
+            <a-plane color="#476255" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
+            <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
         </a-entity>
     </a-scene>
 
@@ -149,18 +126,15 @@
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // サイト全体でタッチイベントが有効になるタイミングを制御
         function initializeApp() {
             aScene.style.pointerEvents = 'auto';
             drawingCanvas.style.pointerEvents = 'auto';
 
-            // カメラの再生イベント
             video.addEventListener('play', () => {
                 resizeCanvas();
                 window.addEventListener('resize', resizeCanvas);
             });
 
-            // 描画イベントリスナー
             drawingCanvas.addEventListener('touchstart', (e) => {
                 if (e.touches.length !== 1) return;
                 e.preventDefault();
@@ -168,7 +142,7 @@
                 const touch = e.touches[0];
                 const x = touch.clientX;
                 const y = touch.clientY;
-                points = [{x: x, y: y}];
+                points = [{ x, y }];
                 ctx.beginPath();
                 ctx.moveTo(x, y);
             });
@@ -179,7 +153,7 @@
                 const touch = e.touches[0];
                 const x = touch.clientX;
                 const y = touch.clientY;
-                points.push({x: x, y: y});
+                points.push({ x, y });
                 ctx.lineTo(x, y);
                 ctx.stroke();
                 predictButton.disabled = false;
@@ -207,7 +181,6 @@
 
             const width = maxX - minX;
             const height = maxY - minY;
-
             if (width <= 0 || height <= 0) return;
 
             const tempCanvas = document.createElement('canvas');
@@ -267,31 +240,27 @@
             });
         });
 
-        // デバイスモーションセンサーの許可を求める関数
         function requestDeviceMotionPermission() {
-            if (typeof DeviceMotionEvent.requestPermission === 'function') {
-                DeviceMotionEvent.requestPermission().then(permissionState => {
-                    if (permissionState === 'granted') {
-                        // 許可されたらAR機能を初期化
+            if (typeof DeviceMotionEvent?.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission()
+                    .then(permissionState => {
+                        if (permissionState !== 'granted') {
+                            console.warn('デバイスモーションセンサーへのアクセスが拒否されました。');
+                        }
                         initializeApp();
-                    } else {
-                        // 拒否された場合の処理
-                        console.log('デバイスモーションセンサーへのアクセスが拒否されました。');
-                        initializeApp(); // 拒否されてもウェブサイトの他の機能を有効化
-                    }
-                }).catch(console.error);
+                    })
+                    .catch((err) => {
+                        console.error('センサーパーミッションエラー:', err);
+                        initializeApp();
+                    });
             } else {
-                // requestPermissionが利用できないブラウザの場合
                 console.log('このブラウザは DeviceMotionEvent.requestPermission() をサポートしていません。');
                 initializeApp();
             }
         }
 
-        // ページ読み込み完了後にカメラ起動と、iOS 13+向けのパーミッションリクエストを呼び出す
         document.addEventListener('DOMContentLoaded', () => {
             setupCamera();
-            
-            // ユーザーが最初のタッチ操作をした後に許可を求める
             const initialTouchHandler = () => {
                 requestDeviceMotionPermission();
                 document.removeEventListener('touchstart', initialTouchHandler);
