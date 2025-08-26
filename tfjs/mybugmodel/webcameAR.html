@@ -68,31 +68,36 @@
     </div>
 
     <a-scene embedded vr-mode-ui="enabled: false" ar-mode="false">
-        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5"></a-box>
+        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5" 
+               color="#4CAF50" look-at="[camera]"></a-box>
+        
         <a-entity id="cameraRig" position="0 0 0">
-            <a-entity camera look-controls position="0 1.6 0"></a-entity>
+            <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
         </a-entity>
+        
         <a-assets>
             <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
         </a-assets>
-        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5"  look-at="camera">
+        
+        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5" 
+                  look-at="[camera]" camera-facing>
             <!-- 枠（木のフレーム風） -->
-              <a-plane
+            <a-plane
                 color="#5A3E2B"
                 width="2.7"
                 height="1.4"
                 position="0 0 -0.01"
                 material="shader: flat"
-              ></a-plane>
-            
-              <!-- 黒板背景 -->
-              <a-plane
+            ></a-plane>
+        
+            <!-- 黒板背景 -->
+            <a-plane
                 color="#2E4E3F"
                 width="2.5"
                 height="1.2"
                 position="0 0 0"
                 material="shader: flat"
-              ></a-plane>
+            ></a-plane>
 
             <a-troika-text
                 id="bubbleText"
@@ -256,7 +261,7 @@
                     cloverText.setAttribute('visible', true);
                     bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
 
-                    const camera = document.querySelector('a-entity[camera]');
+                    const camera = document.querySelector('#mainCamera');
                     if (camera) {
                         const cameraWorldPosition = new THREE.Vector3();
                         camera.object3D.getWorldPosition(cameraWorldPosition);
@@ -284,48 +289,82 @@
                 predictButton.disabled = true;
             });
         });
-        
-        AFRAME.registerComponent('tail-update', {
+
+        // カスタムコンポーネント：カメラに常に向く
+        AFRAME.registerComponent('camera-facing', {
+            init: function () {
+                this.camera = document.querySelector('#mainCamera');
+            },
+            
             tick: function () {
-                const cloverText = document.getElementById('cloverText');
-                const tailBlack = document.getElementById('tailBlack');
-                const tailWhite = document.getElementById('tailWhite');
-                const cloverObj = document.getElementById('cloverObj');
-
-                if (!cloverText || !tailBlack || !tailWhite || !cloverObj || !cloverText.getAttribute('visible') || !cloverObj.getAttribute('visible')) return;
+                if (!this.camera || !this.el.getAttribute('visible')) return;
                 
-                const bubblePos = new THREE.Vector3();
-                cloverText.object3D.getWorldPosition(bubblePos);
-
-                const targetPos = new THREE.Vector3();
-                cloverObj.object3D.getWorldPosition(targetPos);
-
-                const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-                dir.y = 0;
-
-                if (dir.length() < 0.001) {
-                    tailBlack.setAttribute('rotation', '0 0 0');
-                    tailWhite.setAttribute('rotation', '0 0 0');
-                    tailBlack.setAttribute('position', '0 -0.575 0');
-                    tailWhite.setAttribute('position', '0 -0.525 0');
-                    return;
-                }
+                // カメラの位置を取得
+                const cameraPosition = new THREE.Vector3();
+                this.camera.object3D.getWorldPosition(cameraPosition);
                 
-                dir.normalize();
-                const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-
-                tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-                tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-
-                tailBlack.setAttribute('position', '0 -0.575 0');
-                tailWhite.setAttribute('position', '0 -0.525 0');
+                // このエンティティの位置を取得
+                const entityPosition = new THREE.Vector3();
+                this.el.object3D.getWorldPosition(entityPosition);
+                
+                // カメラを向くように回転させる
+                this.el.object3D.lookAt(cameraPosition);
+                
+                // Y軸回転のみに制限（オプション - 水平方向のみ向かせたい場合）
+                // const euler = new THREE.Euler().setFromQuaternion(this.el.object3D.quaternion);
+                // euler.x = 0;
+                // euler.z = 0;
+                // this.el.object3D.setRotationFromEuler(euler);
             }
         });
-        
+
+        // オブジェクトが出現する際の位置調整コンポーネント
+        AFRAME.registerComponent('dynamic-position', {
+            init: function () {
+                this.camera = document.querySelector('#mainCamera');
+                this.isVisible = false;
+            },
+            
+            tick: function () {
+                const visible = this.el.getAttribute('visible');
+                
+                // 表示状態が変わった時に位置を更新
+                if (visible && !this.isVisible && this.camera) {
+                    this.updatePosition();
+                    this.isVisible = true;
+                } else if (!visible) {
+                    this.isVisible = false;
+                }
+            },
+            
+            updatePosition: function () {
+                const cameraPosition = new THREE.Vector3();
+                this.camera.object3D.getWorldPosition(cameraPosition);
+                
+                // カメラの前方向を計算
+                const cameraDirection = new THREE.Vector3(0, 0, -1);
+                cameraDirection.applyQuaternion(this.camera.object3D.quaternion);
+                
+                // カメラから適切な距離にオブジェクトを配置
+                const distance = 1.5;
+                const targetPosition = cameraPosition.clone();
+                targetPosition.add(cameraDirection.multiplyScalar(distance));
+                
+                this.el.setAttribute('position', targetPosition);
+            }
+        });
+
+        // DOMが読み込まれた後にコンポーネントを適用
         document.addEventListener('DOMContentLoaded', () => {
             const cloverText = document.getElementById('cloverText');
+            const cloverObj = document.getElementById('cloverObj');
+            
             if (cloverText) {
-                cloverText.setAttribute('tail-update', '');
+                cloverText.setAttribute('dynamic-position', '');
+            }
+            
+            if (cloverObj) {
+                cloverObj.setAttribute('dynamic-position', '');
             }
         });
     </script>
