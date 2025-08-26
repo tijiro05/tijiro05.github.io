@@ -18,6 +18,7 @@
             width: 100vw; height: 100vh;
             z-index: 5;
             pointer-events: auto;
+            display: none; /* 初期状態では非表示 */
         }
         #controlPanel {
             position: absolute;
@@ -66,7 +67,56 @@
         <button id="clearButton">消去</button>
     </div>
 
-    <div id="ar-container"></div>
+    <a-scene embedded vr-mode-ui="enabled: true" ar-mode="true">
+        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5"></a-box>
+        <a-entity id="cameraRig" position="0 0 0">
+            <a-entity camera look-controls position="0 1.6 0"></a-entity>
+        </a-entity>
+        <a-assets>
+            <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
+        </a-assets>
+        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
+            <a-plane
+                color="#3D5348"
+                width="2.5"
+                height="1.2"
+                position="0 0 -0.005"
+                material="shader: flat; opacity: 1"
+            ></a-plane>
+            <a-plane
+                color="#476255"
+                width="2.4"
+                height="1.1"
+                position="0 0 0"
+                material="shader: flat; opacity: 1"
+            ></a-plane>
+            <a-troika-text
+                id="bubbleText"
+                font="#notojpFont"
+                value="ここに結果が表示されます"
+                font-size="0.12"
+                color="#FFFFFF"
+                textAlign="center"
+                position="0 0 0.01"
+            ></a-troika-text>
+            <a-triangle
+                id="tailBlack"
+                color="#3D5348"
+                vertex-a="0 -0.62 0"
+                vertex-b="-0.3 -0.9 0"
+                vertex-c="0.3 -0.9 0"
+                position="0 -0.575 0"
+            ></a-triangle>
+            <a-triangle
+                id="tailWhite"
+                color="#476255"
+                vertex-a="0 -0.55 0"
+                vertex-b="-0.27 -0.85 0"
+                vertex-c="0.27 -0.85 0"
+                position="0 -0.525 0"
+            ></a-triangle>
+        </a-entity>
+    </a-scene>
 
     <script>
         const modelPath = 'model/model.json';
@@ -77,7 +127,6 @@
         const ctx = drawingCanvas.getContext('2d');
         const predictButton = document.getElementById('predictButton');
         const clearButton = document.getElementById('clearButton');
-        const controlPanel = document.getElementById('controlPanel');
 
         let isDrawing = false;
         let points = [];
@@ -87,6 +136,7 @@
             drawingCanvas.height = video.offsetHeight;
         }
         window.addEventListener('resize', resizeCanvas);
+        video.addEventListener('loadedmetadata', resizeCanvas);
 
         tf.loadLayersModel(modelPath).then((loadedModel) => {
             model = loadedModel;
@@ -99,47 +149,29 @@
                     audio: false,
                 });
                 video.srcObject = stream;
-                
-                // カメラの映像が読み込まれたらボタンとARシーンを表示
-                video.onloadedmetadata = () => {
-                    resizeCanvas();
-                    
-                    // A-Frameシーンを動的に生成
-                    const sceneEl = document.createElement('a-scene');
-                    sceneEl.setAttribute('embedded', '');
-                    sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
-                    sceneEl.setAttribute('ar-mode', 'false');
-
-                    sceneEl.innerHTML = `
-                        <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5"></a-box>
-                        <a-entity id="cameraRig" position="0 0 0">
-                            <a-entity camera look-controls position="0 1.6 0"></a-entity>
-                        </a-entity>
-                        <a-assets>
-                            <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
-                        </a-assets>
-                        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
-                            <a-plane color="#3D5348" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
-                            <a-plane color="#476255" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
-                            <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
-                            <a-triangle id="tailBlack" color="#3D5348" vertex-a="0 -0.62 0" vertex-b="-0.3 -0.9 0" vertex-c="0.3 -0.9 0" position="0 -0.575 0"></a-triangle>
-                            <a-triangle id="tailWhite" color="#476255" vertex-a="0 -0.55 0" vertex-b="-0.27 -0.85 0" vertex-c="0.27 -0.85 0" position="0 -0.525 0"></a-triangle>
-                        </a-entity>
-                    `;
-                    document.getElementById('ar-container').appendChild(sceneEl);
-
-                    // ボタンを表示
-                    controlPanel.style.display = 'flex';
-                };
             } catch (err) {
                 console.error("カメラへのアクセスが拒否されました。", err);
                 alert("カメラへのアクセスを許可してください。");
-                controlPanel.style.display = 'none';
             }
         }
         
-        // ページ読み込み完了後にカメラセットアップを開始
-        window.addEventListener('DOMContentLoaded', setupCamera);
+        // カメラの映像が読み込まれたら、A-FrameシーンにARモードに入るよう指示する
+        video.addEventListener('loadedmetadata', () => {
+            const scene = document.querySelector('a-scene');
+            if (scene) {
+                // ここでARモードの開始を試み、ユーザーに「This immersive website...」の許可を求める
+                scene.enterAR();
+            }
+        });
+
+        // ユーザーがARモードに入ったら、UIを表示する
+        document.querySelector('a-scene').addEventListener('enter-vr', () => {
+            console.log("ARモードに入りました。UIを表示します。");
+            drawingCanvas.style.display = 'block';
+            document.getElementById('controlPanel').style.display = 'flex';
+        });
+
+        setupCamera();
 
         ctx.strokeStyle = '#007bff';
         ctx.lineWidth = 5;
@@ -298,9 +330,10 @@
         });
         
         document.addEventListener('DOMContentLoaded', () => {
-            // A-Frameシーンが動的に生成されるため、
-            // ページロード時のgetAttributeは実行されない。
-            // 予測ボタンのクリックイベント内でAR要素を取得する。
+            const cloverText = document.getElementById('cloverText');
+            if (cloverText) {
+                cloverText.setAttribute('tail-update', '');
+            }
         });
     </script>
 </body>
