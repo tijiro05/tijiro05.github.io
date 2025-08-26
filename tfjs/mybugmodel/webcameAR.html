@@ -85,7 +85,7 @@
       <a-troika-text
         id="bubbleText"
         font="#notojpFont"
-        value="これはシロツメサ よつばのクローバーともいうよ"
+        value="これはシロツメサ クローバーともいうよ"
         font-size="0.12"
         color="#FFFFFF"
         textAlign="center"
@@ -113,7 +113,7 @@
 
   <script>
     const modelPath = 'model/model.json';
-    const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'This is White Clover'];
+    const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
     let model;
     const video = document.getElementById('webcam');
 
@@ -195,12 +195,12 @@
         // 吹き出しに分類ラベルだけセット
         bubbleText.setAttribute('value', topLabel);
 
-        if (topLabel === 'This is White Clover') {
+        if (topLabel === 'シロツメクサ') {
           cloverText.setAttribute('visible', true);
 
           bubbleText.setAttribute('font-size', '0.12'); 
 
-          bubbleText.setAttribute('value', "これはシロツメクサ\nよつばのクローバーともいうよ");
+          bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
 
           // cloverObjはカメラの前3mに固定
           cloverObj.setAttribute('position', '0 0 -3');
