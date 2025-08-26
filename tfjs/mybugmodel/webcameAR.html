@@ -1,4 +1,38 @@
-<a-scene embedded vr-mode-ui="enabled: false" ar-mode="false">
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>動植物識別AR</title>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+<script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+<script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
+<script src="https://unpkg.com/aframe-look-at-component@1.0.0/dist/aframe-look-at-component.min.js"></script>
+<style>
+body{margin:0;overflow:hidden;}
+#webcam{position:absolute;top:0;left:0;width:100vw;height:100vh;object-fit:cover;z-index:0;}
+#drawingCanvas{position:absolute;top:0;left:0;width:100vw;height:100vh;z-index:5;pointer-events:none;}
+#controlPanel{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+background:rgba(255,255,255,0.9);padding:10px;border-radius:8px;
+z-index:10;font-family:sans-serif;width:90%;max-width:500px;text-align:center;
+display:none;justify-content:space-around;gap:10px;}
+#predictButton,#clearButton{padding:10px 20px;font-size:18px;border:none;border-radius:8px;color:white;
+cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.1);transition:background-color 0.3s ease;}
+#predictButton{background-color:#4caf50;}#predictButton:hover{background-color:#45a049;}
+#clearButton{background-color:#f44336;}#clearButton:hover{background-color:#d32f2f;}
+#predictButton:disabled{background-color:#ccc;cursor:not-allowed;}
+a-scene{position:absolute;top:0;left:0;width:100vw;height:100vh;z-index:1;}
+</style>
+</head>
+<body>
+<video id="webcam" autoplay playsinline muted></video>
+<canvas id="drawingCanvas"></canvas>
+
+<div id="controlPanel">
+    <button id="predictButton" disabled>分類する</button>
+    <button id="clearButton">消去</button>
+</div>
+
+<a-scene embedded vr-mode-ui="enabled:false" ar-mode="false">
     <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5" color="#4CAF50" look-at="[camera]" dynamic-position></a-box>
 
     <a-entity id="cameraRig" position="0 0 0">
@@ -12,43 +46,104 @@
     <a-entity id="cloverText" visible="false" scale="0.5 0.5 0.5" look-at="[camera]" camera-facing>
         <a-plane color="#5A3E2B" width="2.7" height="1.4" position="0 0 -0.06" material="shader: flat"></a-plane>
         <a-plane color="#2E4E3F" width="2.5" height="1.2" position="0 0 -0.05" material="shader: flat"></a-plane>
-        <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます"
-                       font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.06"></a-troika-text>
+        <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.06"></a-troika-text>
     </a-entity>
 </a-scene>
 
 <script>
-const cloverText = document.getElementById('cloverText');
-const cloverObj = document.getElementById('cloverObj');
-const bubbleText = document.getElementById('bubbleText');
-const camera = document.querySelector('#mainCamera');
+const modelPath = 'model/model.json';
+const classLabels = ['蚊','バッタ','てんとう虫','アブラムシ','カメムシ','アリ','ハチ','チョウ','トンボ','セミ','シロツメクサ'];
+let model;
+const video = document.getElementById('webcam');
+const drawingCanvas = document.getElementById('drawingCanvas');
+const ctx = drawingCanvas.getContext('2d');
+const predictButton = document.getElementById('predictButton');
+const clearButton = document.getElementById('clearButton');
+const controlPanel = document.getElementById('controlPanel');
+let isDrawing=false, points=[];
 
-function showCloverAR(text) {
-    if(!camera) return;
+function resizeCanvas(){drawingCanvas.width=video.offsetWidth;drawingCanvas.height=video.offsetHeight;}
+window.addEventListener('resize',resizeCanvas);
+video.addEventListener('loadedmetadata',resizeCanvas);
 
-    // クローバーオブジェクト位置更新
-    const camPos = new THREE.Vector3();
-    camera.object3D.getWorldPosition(camPos);
-    const camDir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.object3D.quaternion);
-    const targetPos = camPos.clone().add(camDir.multiplyScalar(1.5));
-    cloverObj.setAttribute('position', targetPos);
-    cloverObj.setAttribute('visible', true);
+tf.loadLayersModel(modelPath).then(m=>model=m);
 
-    // 黒板をクローバーオブジェクトに相対配置
-    cloverText.setAttribute('position', {
-        x: targetPos.x,
-        y: targetPos.y + 0.7,  // 少し上に
-        z: targetPos.z + 0.05  // 手前に
-    });
-    bubbleText.setAttribute('value', text);
-    cloverText.setAttribute('visible', true);
+async function setupCamera(){
+    try{
+        const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+        video.srcObject=stream;
+        video.addEventListener('loadedmetadata',()=>{
+            controlPanel.style.display='flex';
+            drawingCanvas.style.pointerEvents="auto";
+        });
+    }catch(e){alert("カメラ許可が必要です");}
 }
+setupCamera();
 
-// クローバー以外は文字のみ
-function showLabelOnly(text) {
-    cloverObj.setAttribute('visible', false);
-    cloverText.setAttribute('position', {x:0,y:1.5,z:-1.2});
-    bubbleText.setAttribute('value', text);
-    cloverText.setAttribute('visible', true);
-}
+ctx.strokeStyle='#007bff';ctx.lineWidth=5;ctx.lineCap='round';ctx.lineJoin='round';
+
+drawingCanvas.addEventListener('touchstart',e=>{if(e.touches.length!==1)return;e.preventDefault();
+    const t=e.touches[0];points=[{x:t.clientX,y:t.clientY}];ctx.beginPath();ctx.moveTo(t.clientX,t.clientY);isDrawing=true;
+});
+drawingCanvas.addEventListener('touchmove',e=>{if(!isDrawing||e.touches.length!==1)return;e.preventDefault();
+    const t=e.touches[0];points.push({x:t.clientX,y:t.clientY});ctx.lineTo(t.clientX,t.clientY);ctx.stroke();predictButton.disabled=false;
+});
+drawingCanvas.addEventListener('touchend',()=>{ctx.closePath();isDrawing=false;});
+clearButton.addEventListener('click',()=>{ctx.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);points=[];predictButton.disabled=true;
+    document.getElementById('cloverText').setAttribute('visible',false);
+    document.getElementById('cloverObj').setAttribute('visible',false);
+});
+
+predictButton.addEventListener('click',async()=>{
+    if(!model||points.length<2)return;
+    const minX=Math.min(...points.map(p=>p.x)), minY=Math.min(...points.map(p=>p.y));
+    const maxX=Math.max(...points.map(p=>p.x)), maxY=Math.max(...points.map(p=>p.y));
+    const width=maxX-minX,height=maxY-minY;if(width<=0||height<=0)return;
+    const tempCanvas=document.createElement('canvas');tempCanvas.width=width;tempCanvas.height=height;
+    tempCanvas.getContext('2d').drawImage(video,minX,minY,width,height,0,0,width,height);
+    const resizedCanvas=document.createElement('canvas');resizedCanvas.width=224;resizedCanvas.height=224;
+    resizedCanvas.getContext('2d').drawImage(tempCanvas,0,0,224,224);
+    const tensor=tf.browser.fromPixels(resizedCanvas.getContext('2d').getImageData(0,0,224,224)).toFloat().div(tf.scalar(255)).expandDims();
+    const predictions=(await model.predict(tensor).array())[0];
+    const topIdx=predictions.indexOf(Math.max(...predictions));
+    const topLabel=classLabels[topIdx]||'不明';
+
+    const cloverText=document.getElementById('cloverText');
+    const bubbleText=document.getElementById('bubbleText');
+    const cloverObj=document.getElementById('cloverObj');
+    const camera=document.querySelector('#mainCamera');
+
+    if(topLabel==='シロツメクサ' && camera){
+        const camPos=new THREE.Vector3(); camera.object3D.getWorldPosition(camPos);
+        const camDir=new THREE.Vector3(0,0,-1).applyQuaternion(camera.object3D.quaternion);
+        const targetPos=camPos.clone().add(camDir.multiplyScalar(1.5));
+
+        cloverObj.setAttribute('position', targetPos); cloverObj.setAttribute('visible', true);
+        cloverText.setAttribute('position',{x:targetPos.x,y:targetPos.y+0.7,z:targetPos.z+0.05});
+        bubbleText.setAttribute('value',"これはシロツメクサ\nクローバーともいうよ");
+        cloverText.setAttribute('visible', true);
+    } else {
+        cloverObj.setAttribute('visible', false);
+        cloverText.setAttribute('position',{x:0,y:1.5,z:-1.2});
+        bubbleText.setAttribute('value', topLabel);
+        cloverText.setAttribute('visible', true);
+    }
+
+    ctx.clearRect(0,0,drawingCanvas.width,drawingCanvas.height);points=[];predictButton.disabled=true;
+});
+
+// カスタムコンポーネント
+AFRAME.registerComponent('camera-facing',{init(){this.camera=document.querySelector('#mainCamera');},tick(){if(!this.camera||!this.el.getAttribute('visible'))return;
+    const camPos=new THREE.Vector3();this.camera.object3D.getWorldPosition(camPos);this.el.object3D.lookAt(camPos);}
+});
+AFRAME.registerComponent('dynamic-position',{init(){this.camera=document.querySelector('#mainCamera');this.isVisible=false;},tick(){const visible=this.el.getAttribute('visible');
+    if(visible&&!this.isVisible&&this.camera){this.updatePosition();this.isVisible=true;}else if(!visible){this.isVisible=false;}},updatePosition(){const camPos=new THREE.Vector3();
+    this.camera.object3D.getWorldPosition(camPos);const camDir=new THREE.Vector3(0,0,-1).applyQuaternion(this.camera.object3D.quaternion);
+    this.el.setAttribute('position',camPos.clone().add(camDir.multiplyScalar(1.5)));}});
+
+document.addEventListener('DOMContentLoaded',()=>{
+    document.getElementById('cloverObj').setAttribute('dynamic-position','');
+});
 </script>
+</body>
+</html>
