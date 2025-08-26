@@ -13,14 +13,11 @@
             width: 100vw; height: 100vh;
             object-fit: cover; z-index: 0;
         }
-        #selectionRing {
-            position: absolute;
-            border: 2px dashed #007bff;
-            border-radius: 50%;
-            box-sizing: border-box;
+        #drawingCanvas {
+            position: absolute; top: 0; left: 0;
+            width: 100vw; height: 100vh;
             z-index: 5;
-            display: none;
-            pointer-events: none;
+            pointer-events: auto; /* タッチイベントを受け付ける */
         }
         #controlPanel {
             position: absolute;
@@ -34,30 +31,24 @@
             max-width: 500px;
             text-align: center;
             display: flex;
-            flex-direction: column;
+            justify-content: space-around;
             gap: 10px;
         }
-        #predictButton, #confirmButton {
+        #predictButton, #clearButton {
             padding: 10px 20px;
             font-size: 18px;
             border: none;
             border-radius: 8px;
-            background-color: #4caf50;
             color: white;
             cursor: pointer;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             transition: background-color 0.3s ease;
         }
-        #predictButton:hover, #confirmButton:hover {
-            background-color: #45a049;
-        }
-        #confirmButton {
-            background-color: #007bff;
-        }
-        #confirmButton:disabled {
-            background-color: #ccc;
-            cursor: not-allowed;
-        }
+        #predictButton { background-color: #4caf50; }
+        #predictButton:hover { background-color: #45a049; }
+        #clearButton { background-color: #f44336; }
+        #clearButton:hover { background-color: #d32f2f; }
+        #predictButton:disabled { background-color: #ccc; cursor: not-allowed; }
         a-scene {
             position: absolute;
             top: 0; left: 0;
@@ -68,10 +59,11 @@
 </head>
 <body>
     <video id="webcam" autoplay playsinline muted></video>
-    <div id="selectionRing"></div>
+    <canvas id="drawingCanvas"></canvas>
+    
     <div id="controlPanel">
-        <button id="predictButton">範囲指定</button>
-        <button id="confirmButton" disabled>この範囲で分類</button>
+        <button id="predictButton" disabled>分類する</button>
+        <button id="clearButton">消去</button>
     </div>
 
     <a-scene embedded vr-mode-ui="enabled: false">
@@ -137,12 +129,21 @@
         const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
         let model;
         const video = document.getElementById('webcam');
-        const selectionRing = document.getElementById('selectionRing');
+        const drawingCanvas = document.getElementById('drawingCanvas');
+        const ctx = drawingCanvas.getContext('2d');
         const predictButton = document.getElementById('predictButton');
-        const confirmButton = document.getElementById('confirmButton');
+        const clearButton = document.getElementById('clearButton');
 
-        let isSelecting = false;
-        let startX, startY;
+        let isDrawing = false;
+        let points = [];
+
+        // キャンバスのサイズを動画に合わせる
+        function resizeCanvas() {
+            drawingCanvas.width = video.offsetWidth;
+            drawingCanvas.height = video.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        video.addEventListener('loadedmetadata', resizeCanvas);
 
         // モデル読み込み
         tf.loadLayersModel(modelPath).then((loadedModel) => {
@@ -159,64 +160,79 @@
         }
         setupCamera();
 
-        // わっかの位置とサイズを設定する関数
-        function setSelectionRing(x, y, size) {
-            selectionRing.style.left = `${x - size / 2}px`;
-            selectionRing.style.top = `${y - size / 2}px`;
-            selectionRing.style.width = `${size}px`;
-            selectionRing.style.height = `${size}px`;
-        }
+        // 描画設定
+        ctx.strokeStyle = '#007bff';
+        ctx.lineWidth = 5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
 
-        // 範囲指定ボタンのクリックイベント
-        predictButton.addEventListener('click', () => {
-            isSelecting = true;
-            selectionRing.style.display = 'block';
+        // 描画開始
+        drawingCanvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            e.preventDefault();
+            isDrawing = true;
+            const touch = e.touches[0];
+            const x = touch.clientX;
+            const y = touch.clientY;
+            points = [{x: x, y: y}];
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        });
+
+        // 描画中
+        drawingCanvas.addEventListener('touchmove', (e) => {
+            if (!isDrawing || e.touches.length !== 1) return;
+            e.preventDefault();
+            const touch = e.touches[0];
+            const x = touch.clientX;
+            const y = touch.clientY;
+            points.push({x: x, y: y});
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            predictButton.disabled = false;
+        });
+
+        // 描画終了
+        drawingCanvas.addEventListener('touchend', () => {
+            isDrawing = false;
+            ctx.closePath();
+        });
+
+        // クリアボタン
+        clearButton.addEventListener('click', () => {
+            ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            points = [];
             predictButton.disabled = true;
-            confirmButton.disabled = false;
         });
 
-        // タッチ開始イベント
-        video.addEventListener('touchstart', (e) => {
-            if (!isSelecting || e.touches.length !== 1) return;
-            startX = e.touches.item(0).clientX;
-            startY = e.touches.item(0).clientY;
-        });
+        // 分類ボタン
+        predictButton.addEventListener('click', () => {
+            if (!model || points.length < 2) return;
 
-        // タッチ移動イベント
-        video.addEventListener('touchmove', (e) => {
-            if (!isSelecting || !startX || !startY || e.touches.length !== 1) return;
-            const currentX = e.touches.item(0).clientX;
-            const currentY = e.touches.item(0).clientY;
-            const distance = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
-            setSelectionRing(startX, startY, distance * 2);
-        });
+            // 描画領域をバウンディングボックスとして取得
+            const minX = Math.min(...points.map(p => p.x));
+            const minY = Math.min(...points.map(p => p.y));
+            const maxX = Math.max(...points.map(p => p.x));
+            const maxY = Math.max(...points.map(p => p.y));
 
-        // タッチ終了イベント
-        video.addEventListener('touchend', (e) => {
-            if (!isSelecting || !startX || !startY) return;
-            isSelecting = false;
-        });
+            const width = maxX - minX;
+            const height = maxY - minY;
 
-        // 分類ボタンのクリックイベント
-        confirmButton.addEventListener('click', () => {
-            if (!model || selectionRing.style.display === 'none') return;
+            if (width <= 0 || height <= 0) return;
 
-            const videoRect = video.getBoundingClientRect();
-            const ringRect = selectionRing.getBoundingClientRect();
+            // 描画された領域の画像を抽出
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
 
-            // 選択範囲の画像データを抽出
-            const canvas = document.createElement('canvas');
-            canvas.width = ringRect.width;
-            canvas.height = ringRect.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(video, ringRect.left - videoRect.left, ringRect.top - videoRect.top, ringRect.width, ringRect.height, 0, 0, ringRect.width, ringRect.height);
-
-            // モデルの入力サイズにリサイズ
+            // 抽出画像をモデルの入力サイズにリサイズ
             const resizedCanvas = document.createElement('canvas');
             resizedCanvas.width = 224;
             resizedCanvas.height = 224;
             const resizedCtx = resizedCanvas.getContext('2d');
-            resizedCtx.drawImage(canvas, 0, 0, 224, 224);
+            resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
 
             const imageData = resizedCtx.getImageData(0, 0, 224, 224);
             const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
@@ -230,8 +246,9 @@
                 const bubbleText = document.getElementById('bubbleText');
                 const cloverObj = document.getElementById('cloverObj');
 
+                // 分類結果の表示
                 bubbleText.setAttribute('value', topLabel);
-
+                
                 if (topLabel === 'シロツメクサ') {
                     cloverText.setAttribute('visible', true);
                     bubbleText.setAttribute('font-size', '0.12');
@@ -241,13 +258,12 @@
                     const camera = document.querySelector('a-entity[camera]');
                     const cameraWorldPosition = new THREE.Vector3();
                     camera.object3D.getWorldPosition(cameraWorldPosition);
-                    const targetPosition = new THREE.Vector3(0, 0, -1.5); // カメラ前1.5m
+                    const targetPosition = new THREE.Vector3(0, 0, -1.5);
                     targetPosition.applyQuaternion(camera.object3D.quaternion);
                     targetPosition.add(cameraWorldPosition);
                     cloverObj.setAttribute('position', targetPosition);
                     cloverObj.setAttribute('visible', true);
 
-                    // 吹き出しをARオブジェクトの少し上に配置
                     const objPos = cloverObj.getAttribute('position');
                     cloverText.setAttribute('position', {
                         x: objPos.x + 0.3,
@@ -259,16 +275,13 @@
                     cloverObj.setAttribute('visible', false);
                 }
 
-                // 状態をリセット
-                selectionRing.style.display = 'none';
-                predictButton.disabled = false;
-                confirmButton.disabled = true;
-                startX = null;
-                startY = null;
+                ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                points = [];
+                predictButton.disabled = true;
             });
         });
 
-        // しっぽ向き更新関数（ARオブジェクトがvisibleな場合のみ実行）
+        // しっぽ向き更新関数
         function updateTailDirection() {
             const cloverText = document.getElementById('cloverText');
             const tailBlack = document.getElementById('tailBlack');
@@ -284,7 +297,7 @@
             cloverObj.object3D.getWorldPosition(targetPos);
 
             const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-            dir.y = 0; // 水平方向のみ
+            dir.y = 0;
 
             if (dir.length() < 0.001) {
                 tailBlack.setAttribute('rotation', '0 0 0');
@@ -295,7 +308,6 @@
             }
 
             dir.normalize();
-
             const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
 
             tailBlack.setAttribute('rotation', `0 ${angle} 0`);
