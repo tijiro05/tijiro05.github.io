@@ -17,7 +17,7 @@
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 5;
-            pointer-events: auto;
+            pointer-events: none; /* ← 初期は無効化 */
         }
         #controlPanel {
             position: absolute;
@@ -151,8 +151,24 @@
                 video.srcObject = stream;
                 
                 // カメラの映像が読み込まれたらボタンを表示
-                video.addEventListener('loadedmetadata', () => {
+                video.addEventListener('loadedmetadata', async () => {
                     controlPanel.style.display = 'flex';
+
+                    // iOS Safari の場合、センサー許可が必要
+                    if (typeof DeviceOrientationEvent !== "undefined" &&
+                        typeof DeviceOrientationEvent.requestPermission === "function") {
+                        try {
+                            const res = await DeviceOrientationEvent.requestPermission();
+                            if (res === "granted") {
+                                drawingCanvas.style.pointerEvents = "auto"; // 許可後に有効化
+                            }
+                        } catch (e) {
+                            console.warn("センサー許可が拒否されました:", e);
+                        }
+                    } else {
+                        // Android / PC などはセンサー許可不要
+                        drawingCanvas.style.pointerEvents = "auto";
+                    }
                 });
             } catch (err) {
                 console.error("カメラへのアクセスが拒否されました。", err);
