@@ -69,7 +69,7 @@
 
     <a-scene embedded vr-mode-ui="enabled: false" ar-mode="false">
         <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5" 
-               color="#4CAF50" look-at="[camera]"></a-box>
+               color="#4CAF50" camera-facing></a-box>
         
         <a-entity id="cameraRig" position="0 0 0">
             <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
@@ -80,7 +80,7 @@
         </a-assets>
         
         <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5" 
-                  look-at="[camera]" camera-facing>
+                  camera-facing>
             <!-- 枠（木のフレーム風） -->
             <a-plane
                 color="#5A3E2B"
@@ -258,8 +258,8 @@
                 }
 
                 if (topLabel === 'シロツメクサ') {
-                    cloverText.setAttribute('visible', true);
                     bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
+                    cloverText.setAttribute('visible', true);
 
                     const camera = document.querySelector('#mainCamera');
                     if (camera) {
@@ -279,9 +279,21 @@
                         });
                     }
                 } else {
-                    cloverText.setAttribute('visible', false);
+                    // 他の分類結果の場合もテキストを表示
+                    bubbleText.setAttribute('value', `結果: ${topLabel}`);
+                    cloverText.setAttribute('visible', true);
                     cloverObj.setAttribute('visible', false);
-                    bubbleText.setAttribute('value', topLabel);
+
+                    // カメラの前にテキストパネルを配置
+                    const camera = document.querySelector('#mainCamera');
+                    if (camera) {
+                        const cameraWorldPosition = new THREE.Vector3();
+                        camera.object3D.getWorldPosition(cameraWorldPosition);
+                        const targetPosition = new THREE.Vector3(0, 0, -1.2);
+                        targetPosition.applyQuaternion(camera.object3D.quaternion);
+                        targetPosition.add(cameraWorldPosition);
+                        cloverText.setAttribute('position', targetPosition);
+                    }
                 }
 
                 ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -307,14 +319,15 @@
                 const entityPosition = new THREE.Vector3();
                 this.el.object3D.getWorldPosition(entityPosition);
                 
-                // カメラを向くように回転させる
-                this.el.object3D.lookAt(cameraPosition);
+                // カメラを向くように回転させる（Y軸のみ回転）
+                const direction = new THREE.Vector3().subVectors(cameraPosition, entityPosition);
+                direction.y = 0; // Y軸方向の差分をゼロにして水平方向のみ
+                direction.normalize();
                 
-                // Y軸回転のみに制限（オプション - 水平方向のみ向かせたい場合）
-                // const euler = new THREE.Euler().setFromQuaternion(this.el.object3D.quaternion);
-                // euler.x = 0;
-                // euler.z = 0;
-                // this.el.object3D.setRotationFromEuler(euler);
+                if (direction.length() > 0.001) {
+                    const angle = Math.atan2(direction.x, direction.z);
+                    this.el.object3D.rotation.y = angle;
+                }
             }
         });
 
