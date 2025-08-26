@@ -16,8 +16,8 @@
         #drawingCanvas {
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
-            z-index: 5;
-            pointer-events: auto; /* タッチイベントを有効化 */
+            z-index: 5; /* 映像やA-Frameより手前に表示 */
+            pointer-events: auto; /* タッチイベントを有効にする */
         }
         #controlPanel {
             position: absolute;
@@ -57,8 +57,8 @@
             position: absolute;
             top: 0; left: 0;
             width: 100vw; height: 100vh;
-            z-index: 1;
-            pointer-events: none; /* A-Frameのタッチイベントを無効化 */
+            z-index: 1; /* 描画キャンバスの下に表示 */
+            pointer-events: none; /* タッチイベントを無効にする */
         }
     </style>
 </head>
@@ -120,6 +120,7 @@
             }
         }
 
+        // 初期描画設定
         ctx.strokeStyle = '#007bff';
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
