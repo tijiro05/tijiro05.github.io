@@ -1,236 +1,321 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <title>動植物識別AR</title>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-  <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; }
-    #webcam {
-      position: absolute; top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      object-fit: cover; z-index: 0;
-    }
-    #overlay {
-      position: absolute;
-      bottom: 10px; left: 50%;
-      transform: translateX(-50%);
-      background: rgba(255,255,255,0.9);
-      padding: 10px; border-radius: 8px;
-      z-index: 10;
-      font-family: sans-serif;
-      width: 90%;
-      max-width: 500px;
-      text-align: center;
-    }
-    #predictButton {
-      padding: 10px 20px;
-      font-size: 18px;
-      border: none;
-      border-radius: 8px;
-      background-color: #4caf50;
-      color: white;
-      cursor: pointer;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: background-color 0.3s ease;
-    }
-    #predictButton:hover {
-      background-color: #45a049;
-    }
-    a-scene {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      z-index: 1;
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <title>動植物識別AR</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #webcam {
+            position: absolute; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            object-fit: cover; z-index: 0;
+        }
+        #selectionRing {
+            position: absolute;
+            border: 2px dashed #007bff;
+            border-radius: 50%;
+            box-sizing: border-box;
+            z-index: 5;
+            display: none;
+            pointer-events: none;
+        }
+        #controlPanel {
+            position: absolute;
+            bottom: 10px; left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.9);
+            padding: 10px; border-radius: 8px;
+            z-index: 10;
+            font-family: sans-serif;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #predictButton, #confirmButton {
+            padding: 10px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            background-color: #4caf50;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.3s ease;
+        }
+        #predictButton:hover, #confirmButton:hover {
+            background-color: #45a049;
+        }
+        #confirmButton {
+            background-color: #007bff;
+        }
+        #confirmButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        a-scene {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 1;
+        }
+    </style>
 </head>
 <body>
-  <video id="webcam" autoplay playsinline muted></video>
+    <video id="webcam" autoplay playsinline muted></video>
+    <div id="selectionRing"></div>
+    <div id="controlPanel">
+        <button id="predictButton">範囲指定</button>
+        <button id="confirmButton" disabled>この範囲で分類</button>
+    </div>
 
-  <div id="overlay">
-    <button id="predictButton">分類する</button>
-  </div>
+    <a-scene embedded vr-mode-ui="enabled: false">
+        <a-box id="cloverObj" position="0 0 -1" visible="false"></a-box>
 
-  <a-scene embedded vr-mode-ui="enabled: false">
-    <a-box id="cloverObj" position="0 0 -3" visible="false"></a-box>
+        <a-entity id="cameraRig" position="0 0 0">
+            <a-entity camera look-controls position="0 1.6 0"></a-entity>
+        </a-entity>
 
-    <a-entity id="cameraRig" position="0 0 0">
-      <a-entity camera look-controls position="0 1.6 0"></a-entity>
-    </a-entity>
+        <a-assets>
+            <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
+        </a-assets>
 
-    <a-assets>
-      <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
-    </a-assets>
-    
-    <a-entity id="cloverText" visible="false" position="0 0 -2">
-      <a-plane
-        color="#3D5348"
-        width="2.5"
-        height="1.2"
-        position="0 0 -0.005"
-        material="shader: flat; opacity: 1"
-      ></a-plane>
-    
-      <a-plane
-        color="#476255"
-        width="2.4"
-        height="1.1"
-        position="0 0 0"
-        material="shader: flat; opacity: 1"
-      ></a-plane>
-    
-      <a-troika-text
-        id="bubbleText"
-        font="#notojpFont"
-        value="これはシロツメサ クローバーともいうよ"
-        font-size="0.12"
-        color="#FFFFFF"
-        textAlign="center"
-        position="0 0 0.01"
-      ></a-troika-text>
-    
-      <a-triangle
-        id="tailBlack"
-        color="#3D5348"
-        vertex-a="0 -0.62 0"
-        vertex-b="-0.3 -0.9 0"
-        vertex-c="0.3 -0.9 0"
-        position="0 -0.575 0"
-      ></a-triangle>
-    
-      <a-triangle
-        id="tailWhite"
-        color="#476255"
-        vertex-a="0 -0.55 0"
-        vertex-b="-0.27 -0.85 0"
-        vertex-c="0.27 -0.85 0"
-        position="0 -0.525 0"
-      ></a-triangle>
-  </a-entity>
+        <a-entity id="cloverText" visible="false" position="0 0 -0.5">
+            <a-plane
+                color="#3D5348"
+                width="2.5"
+                height="1.2"
+                position="0 0 -0.005"
+                material="shader: flat; opacity: 1"
+            ></a-plane>
 
-  <script>
-    const modelPath = 'model/model.json';
-    const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
-    let model;
-    const video = document.getElementById('webcam');
+            <a-plane
+                color="#476255"
+                width="2.4"
+                height="1.1"
+                position="0 0 0"
+                material="shader: flat; opacity: 1"
+            ></a-plane>
 
-    // モデル読み込み
-    tf.loadLayersModel(modelPath).then((loadedModel) => {
-      model = loadedModel;
-    });
+            <a-troika-text
+                id="bubbleText"
+                font="#notojpFont"
+                value="ここに結果が表示されます"
+                font-size="0.12"
+                color="#FFFFFF"
+                textAlign="center"
+                position="0 0 0.01"
+            ></a-troika-text>
 
-    // カメラ起動
-    async function setupCamera() {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
-      video.srcObject = stream;
-    }
-    setupCamera();
+            <a-triangle
+                id="tailBlack"
+                color="#3D5348"
+                vertex-a="0 -0.62 0"
+                vertex-b="-0.3 -0.9 0"
+                vertex-c="0.3 -0.9 0"
+                position="0 -0.575 0"
+            ></a-triangle>
 
-    // しっぽ向き更新関数
-    function updateTailDirection() {
-      const cloverText = document.getElementById('cloverText');
-      const tailBlack = document.getElementById('tailBlack');
-      const tailWhite = document.getElementById('tailWhite');
-      const cloverObj = document.getElementById('cloverObj');
+            <a-triangle
+                id="tailWhite"
+                color="#476255"
+                vertex-a="0 -0.55 0"
+                vertex-b="-0.27 -0.85 0"
+                vertex-c="0.27 -0.85 0"
+                position="0 -0.525 0"
+            ></a-triangle>
+        </a-entity>
+    </a-scene>
 
-      if (!cloverText.getAttribute('visible')) return;
+    <script>
+        const modelPath = 'model/model.json';
+        const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
+        let model;
+        const video = document.getElementById('webcam');
+        const selectionRing = document.getElementById('selectionRing');
+        const predictButton = document.getElementById('predictButton');
+        const confirmButton = document.getElementById('confirmButton');
 
-      const bubblePos = new THREE.Vector3();
-      cloverText.object3D.getWorldPosition(bubblePos);
+        let isSelecting = false;
+        let startX, startY;
 
-      const targetPos = new THREE.Vector3();
-      cloverObj.object3D.getWorldPosition(targetPos);
+        // モデル読み込み
+        tf.loadLayersModel(modelPath).then((loadedModel) => {
+            model = loadedModel;
+        });
 
-      const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-      dir.y = 0; // 水平方向のみ
-
-      if (dir.length() < 0.001) {
-        tailBlack.setAttribute('rotation', '0 0 0');
-        tailWhite.setAttribute('rotation', '0 0 0');
-        tailBlack.setAttribute('position', '0 -0.575 0');
-        tailWhite.setAttribute('position', '0 -0.525 0');
-        return;
-      }
-
-      dir.normalize();
-
-      const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-
-      tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-      tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-
-      tailBlack.setAttribute('position', '0 -0.575 0');
-      tailWhite.setAttribute('position', '0 -0.525 0');
-    }
-
-    // 分類ボタン処理
-    document.getElementById('predictButton').addEventListener('click', () => {
-      if (!model) return;
-
-      const canvas = document.createElement('canvas');
-      canvas.width = 224;
-      canvas.height = 224;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(video, 0, 0, 224, 224);
-
-      const imageData = ctx.getImageData(0, 0, 224, 224);
-      const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
-
-      model.predict(tensor).array().then(predictions => {
-        const scores = predictions[0];
-
-        const topResultIndex = scores.indexOf(Math.max(...scores));
-        const topLabel = classLabels[topResultIndex];
-
-        const cloverText = document.getElementById('cloverText');
-        const bubbleText = document.getElementById('bubbleText');
-        const cloverObj = document.getElementById('cloverObj');
-
-        // 吹き出しに分類ラベルだけセット
-        bubbleText.setAttribute('value', topLabel);
-
-        if (topLabel === 'シロツメクサ') {
-          cloverText.setAttribute('visible', true);
-
-          bubbleText.setAttribute('font-size', '0.12'); 
-
-          bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
-
-          // cloverObjはカメラの前3mに固定
-          cloverObj.setAttribute('position', '0 0 -3');
-
-          // cloverObjの右上に吹き出しを配置（Zは少し手前にずらす）
-          const objPos = cloverObj.getAttribute('position');
-          cloverText.setAttribute('position', {
-            x: objPos.x + 0.5,
-            y: objPos.y + 0.5,
-            z: objPos.z + 0.1
-          });
-
-          updateTailDirection();
-        } else {
-          cloverText.setAttribute('visible', false);
+        // カメラ起動
+        async function setupCamera() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' },
+                audio: false,
+            });
+            video.srcObject = stream;
         }
-      });
-    });
+        setupCamera();
 
-    // 毎フレームしっぽの向きを更新
-    AFRAME.registerComponent('tail-update', {
-      tick: function () {
-        updateTailDirection();
-      }
-    });
+        // わっかの位置とサイズを設定する関数
+        function setSelectionRing(x, y, size) {
+            selectionRing.style.left = `${x - size / 2}px`;
+            selectionRing.style.top = `${y - size / 2}px`;
+            selectionRing.style.width = `${size}px`;
+            selectionRing.style.height = `${size}px`;
+        }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const cloverText = document.getElementById('cloverText');
-      cloverText.setAttribute('tail-update', '');
-    });
-  </script>
+        // 範囲指定ボタンのクリックイベント
+        predictButton.addEventListener('click', () => {
+            isSelecting = true;
+            selectionRing.style.display = 'block';
+            predictButton.disabled = true;
+            confirmButton.disabled = false;
+        });
+
+        // タッチ開始イベント
+        video.addEventListener('touchstart', (e) => {
+            if (!isSelecting || e.touches.length !== 1) return;
+            startX = e.touches.item(0).clientX;
+            startY = e.touches.item(0).clientY;
+        });
+
+        // タッチ移動イベント
+        video.addEventListener('touchmove', (e) => {
+            if (!isSelecting || !startX || !startY || e.touches.length !== 1) return;
+            const currentX = e.touches.item(0).clientX;
+            const currentY = e.touches.item(0).clientY;
+            const distance = Math.sqrt(Math.pow(currentX - startX, 2) + Math.pow(currentY - startY, 2));
+            setSelectionRing(startX, startY, distance * 2);
+        });
+
+        // タッチ終了イベント
+        video.addEventListener('touchend', (e) => {
+            if (!isSelecting || !startX || !startY) return;
+            isSelecting = false;
+        });
+
+        // 分類ボタンのクリックイベント
+        confirmButton.addEventListener('click', () => {
+            if (!model || selectionRing.style.display === 'none') return;
+
+            const videoRect = video.getBoundingClientRect();
+            const ringRect = selectionRing.getBoundingClientRect();
+
+            // 選択範囲の画像データを抽出
+            const canvas = document.createElement('canvas');
+            canvas.width = ringRect.width;
+            canvas.height = ringRect.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, ringRect.left - videoRect.left, ringRect.top - videoRect.top, ringRect.width, ringRect.height, 0, 0, ringRect.width, ringRect.height);
+
+            // モデルの入力サイズにリサイズ
+            const resizedCanvas = document.createElement('canvas');
+            resizedCanvas.width = 224;
+            resizedCanvas.height = 224;
+            const resizedCtx = resizedCanvas.getContext('2d');
+            resizedCtx.drawImage(canvas, 0, 0, 224, 224);
+
+            const imageData = resizedCtx.getImageData(0, 0, 224, 224);
+            const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
+
+            model.predict(tensor).array().then(predictions => {
+                const scores = predictions ? predictions.flat() : [];
+                const topResultIndex = scores.indexOf(Math.max(...scores));
+                const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
+
+                const cloverText = document.getElementById('cloverText');
+                const bubbleText = document.getElementById('bubbleText');
+                const cloverObj = document.getElementById('cloverObj');
+
+                bubbleText.setAttribute('value', topLabel);
+
+                if (topLabel === 'シロツメクサ') {
+                    cloverText.setAttribute('visible', true);
+                    bubbleText.setAttribute('font-size', '0.12');
+                    bubbleText.setAttribute('value', "これはシロツメクサ\nクローバーともいうよ");
+
+                    // ARオブジェクトをカメラの少し前に配置
+                    const camera = document.querySelector('a-entity[camera]');
+                    const cameraWorldPosition = new THREE.Vector3();
+                    camera.object3D.getWorldPosition(cameraWorldPosition);
+                    const targetPosition = new THREE.Vector3(0, 0, -1.5); // カメラ前1.5m
+                    targetPosition.applyQuaternion(camera.object3D.quaternion);
+                    targetPosition.add(cameraWorldPosition);
+                    cloverObj.setAttribute('position', targetPosition);
+                    cloverObj.setAttribute('visible', true);
+
+                    // 吹き出しをARオブジェクトの少し上に配置
+                    const objPos = cloverObj.getAttribute('position');
+                    cloverText.setAttribute('position', {
+                        x: objPos.x + 0.3,
+                        y: objPos.y + 0.5,
+                        z: objPos.z + 0.1
+                    });
+                } else {
+                    cloverText.setAttribute('visible', false);
+                    cloverObj.setAttribute('visible', false);
+                }
+
+                // 状態をリセット
+                selectionRing.style.display = 'none';
+                predictButton.disabled = false;
+                confirmButton.disabled = true;
+                startX = null;
+                startY = null;
+            });
+        });
+
+        // しっぽ向き更新関数（ARオブジェクトがvisibleな場合のみ実行）
+        function updateTailDirection() {
+            const cloverText = document.getElementById('cloverText');
+            const tailBlack = document.getElementById('tailBlack');
+            const tailWhite = document.getElementById('tailWhite');
+            const cloverObj = document.getElementById('cloverObj');
+
+            if (!cloverText.getAttribute('visible') || !cloverObj.getAttribute('visible')) return;
+
+            const bubblePos = new THREE.Vector3();
+            cloverText.object3D.getWorldPosition(bubblePos);
+
+            const targetPos = new THREE.Vector3();
+            cloverObj.object3D.getWorldPosition(targetPos);
+
+            const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
+            dir.y = 0; // 水平方向のみ
+
+            if (dir.length() < 0.001) {
+                tailBlack.setAttribute('rotation', '0 0 0');
+                tailWhite.setAttribute('rotation', '0 0 0');
+                tailBlack.setAttribute('position', '0 -0.575 0');
+                tailWhite.setAttribute('position', '0 -0.525 0');
+                return;
+            }
+
+            dir.normalize();
+
+            const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+
+            tailBlack.setAttribute('rotation', `0 ${angle} 0`);
+            tailWhite.setAttribute('rotation', `0 ${angle} 0`);
+
+            tailBlack.setAttribute('position', '0 -0.575 0');
+            tailWhite.setAttribute('position', '0 -0.525 0');
+        }
+
+        // 毎フレームしっぽの向きを更新
+        AFRAME.registerComponent('tail-update', {
+            tick: function () {
+                updateTailDirection();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const cloverText = document.getElementById('cloverText');
+            cloverText.setAttribute('tail-update', '');
+        });
+    </script>
 </body>
 </html>
