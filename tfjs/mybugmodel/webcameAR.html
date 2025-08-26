@@ -5,7 +5,7 @@
   <title>動植物識別AR</title>
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
   <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-  <script type='text/javascript' src='https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js'></script>
+  <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #webcam {
@@ -61,6 +61,10 @@
       <a-entity camera look-controls position="0 1.6 0"></a-entity>
     </a-entity>
 
+    <a-assets>
+      <a-asset-item id="notojpFont" src="fonts/NotoSansJP-VariableFont_wght.ttf"></a-asset-item>
+    </a-assets>
+    
     <a-entity id="cloverText" visible="false" position="0 0 -2">
       <a-plane
         color="#000000"
@@ -78,16 +82,16 @@
         material="shader: flat; opacity: 1"
       ></a-plane>
 
-      <a-text
+      <a-troika-text
         id="bubbleText"
-     
+        font="#notojpFont"
         value="これはシロツメサ よつばのクローバーともいうよ"
         color="#111"
         align="center"
         position="0 0 0.01"
         width="5"
         wrap-count="40"
-      ></a-text>
+      ></a-troika-text>
 
       <a-triangle
         id="tailBlack"
