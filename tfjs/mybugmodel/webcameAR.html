@@ -17,7 +17,7 @@
             position: absolute; top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 5;
-            pointer-events: none; /* 初期状態ではタッチイベントを無効化 */
+            pointer-events: none;
         }
         #controlPanel {
             position: absolute;
@@ -54,13 +54,16 @@
             top: 0; left: 0;
             width: 100vw; height: 100vh;
             z-index: 1;
+            /* 初期状態ではタッチイベントを無効化 */
+            touch-action: none;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
     <video id="webcam" autoplay playsinline muted></video>
     <canvas id="drawingCanvas"></canvas>
-    
+
     <div id="controlPanel">
         <button id="predictButton" disabled>分類する</button>
         <button id="clearButton">消去</button>
@@ -77,7 +80,7 @@
             <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
         </a-assets>
 
-        <a-entity id="cloverText" visible="false" position="0 0 -0.5">
+        <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5">
             <a-plane
                 color="#3D5348"
                 width="2.5"
@@ -103,24 +106,6 @@
                 textAlign="center"
                 position="0 0 0.01"
             ></a-troika-text>
-
-            <a-triangle
-                id="tailBlack"
-                color="#3D5348"
-                vertex-a="0 -0.62 0"
-                vertex-b="-0.3 -0.9 0"
-                vertex-c="0.3 -0.9 0"
-                position="0 -0.575 0"
-            ></a-triangle>
-
-            <a-triangle
-                id="tailWhite"
-                color="#476255"
-                vertex-a="0 -0.55 0"
-                vertex-b="-0.27 -0.85 0"
-                vertex-c="0.27 -0.85 0"
-                position="0 -0.525 0"
-            ></a-triangle>
         </a-entity>
     </a-scene>
 
@@ -133,22 +118,20 @@
         const ctx = drawingCanvas.getContext('2d');
         const predictButton = document.getElementById('predictButton');
         const clearButton = document.getElementById('clearButton');
+        const aScene = document.querySelector('a-scene');
 
         let isDrawing = false;
         let points = [];
 
-        // キャンバスのサイズを動画に合わせる
         function resizeCanvas() {
             drawingCanvas.width = video.offsetWidth;
             drawingCanvas.height = video.offsetHeight;
         }
 
-        // モデル読み込み
         tf.loadLayersModel(modelPath).then((loadedModel) => {
             model = loadedModel;
         });
 
-        // カメラ起動
         async function setupCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -161,18 +144,23 @@
             }
         }
 
-        // 描画設定
         ctx.strokeStyle = '#007bff';
         ctx.lineWidth = 5;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
-        // 動画が再生開始した後にイベントリスナーを登録
-        video.addEventListener('play', () => {
-            resizeCanvas();
-            window.addEventListener('resize', resizeCanvas);
-            drawingCanvas.style.pointerEvents = 'auto'; // タッチイベントを有効化
+        // サイト全体でタッチイベントが有効になるタイミングを制御
+        function initializeApp() {
+            aScene.style.pointerEvents = 'auto';
+            drawingCanvas.style.pointerEvents = 'auto';
 
+            // カメラの再生イベント
+            video.addEventListener('play', () => {
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+            });
+
+            // 描画イベントリスナー
             drawingCanvas.addEventListener('touchstart', (e) => {
                 if (e.touches.length !== 1) return;
                 e.preventDefault();
@@ -201,16 +189,14 @@
                 isDrawing = false;
                 ctx.closePath();
             });
-        });
+        }
 
-        // クリアボタン
         clearButton.addEventListener('click', () => {
             ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             points = [];
             predictButton.disabled = true;
         });
 
-        // 分類ボタン
         predictButton.addEventListener('click', () => {
             if (!model || points.length < 2) return;
 
@@ -249,7 +235,7 @@
                 const cloverObj = document.getElementById('cloverObj');
 
                 bubbleText.setAttribute('value', topLabel);
-                
+
                 if (topLabel === 'シロツメクサ') {
                     cloverText.setAttribute('visible', true);
                     bubbleText.setAttribute('font-size', '0.12');
@@ -281,53 +267,36 @@
             });
         });
 
-        // しっぽ向き更新関数
-        function updateTailDirection() {
-            const cloverText = document.getElementById('cloverText');
-            const tailBlack = document.getElementById('tailBlack');
-            const tailWhite = document.getElementById('tailWhite');
-            const cloverObj = document.getElementById('cloverObj');
-
-            if (!cloverText.getAttribute('visible') || !cloverObj.getAttribute('visible')) return;
-
-            const bubblePos = new THREE.Vector3();
-            cloverText.object3D.getWorldPosition(bubblePos);
-
-            const targetPos = new THREE.Vector3();
-            cloverObj.object3D.getWorldPosition(targetPos);
-
-            const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-            dir.y = 0;
-
-            if (dir.length() < 0.001) {
-                tailBlack.setAttribute('rotation', '0 0 0');
-                tailWhite.setAttribute('rotation', '0 0 0');
-                tailBlack.setAttribute('position', '0 -0.575 0');
-                tailWhite.setAttribute('position', '0 -0.525 0');
-                return;
+        // デバイスモーションセンサーの許可を求める関数
+        function requestDeviceMotionPermission() {
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                DeviceMotionEvent.requestPermission().then(permissionState => {
+                    if (permissionState === 'granted') {
+                        // 許可されたらAR機能を初期化
+                        initializeApp();
+                    } else {
+                        // 拒否された場合の処理
+                        console.log('デバイスモーションセンサーへのアクセスが拒否されました。');
+                        initializeApp(); // 拒否されてもウェブサイトの他の機能を有効化
+                    }
+                }).catch(console.error);
+            } else {
+                // requestPermissionが利用できないブラウザの場合
+                console.log('このブラウザは DeviceMotionEvent.requestPermission() をサポートしていません。');
+                initializeApp();
             }
-
-            dir.normalize();
-            const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-
-            tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-            tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-
-            tailBlack.setAttribute('position', '0 -0.575 0');
-            tailWhite.setAttribute('position', '0 -0.525 0');
         }
 
-        // 毎フレームしっぽの向きを更新
-        AFRAME.registerComponent('tail-update', {
-            tick: function () {
-                updateTailDirection();
-            }
-        });
-
+        // ページ読み込み完了後にカメラ起動と、iOS 13+向けのパーミッションリクエストを呼び出す
         document.addEventListener('DOMContentLoaded', () => {
-            const cloverText = document.getElementById('cloverText');
-            cloverText.setAttribute('tail-update', '');
             setupCamera();
+            
+            // ユーザーが最初のタッチ操作をした後に許可を求める
+            const initialTouchHandler = () => {
+                requestDeviceMotionPermission();
+                document.removeEventListener('touchstart', initialTouchHandler);
+            };
+            document.addEventListener('touchstart', initialTouchHandler);
         });
     </script>
 </body>
