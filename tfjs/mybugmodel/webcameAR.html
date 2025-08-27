@@ -188,7 +188,7 @@
         category: 'マメ科シャジクソウ属',
         description: '花言葉：幸運。四つ葉のクローバーで有名です。',
         show3DObject: false,
-        model: 'model/model.json' // 例としてモデルパスを追加
+        model: 'model/model.json'
       }
     };
 
@@ -294,26 +294,40 @@
       if (width <= 0 || height <= 0) return;
 
       // ボタンを押した瞬間の静止画を1枚だけキャプチャ
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+      const originalCanvas = document.createElement('canvas');
+      originalCanvas.width = width;
+      originalCanvas.height = height;
+      const originalCtx = originalCanvas.getContext('2d');
+      originalCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
 
-      const resizedCanvas = document.createElement('canvas');
-      resizedCanvas.width = 224;
-      resizedCanvas.height = 224;
-      const resizedCtx = resizedCanvas.getContext('2d');
-      resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
-      
       const labels = [];
-      const confidenceThreshold = 0.99;
-      const totalSamples = 30;
+      const confidenceThreshold = 0.90;
+      const totalSamples = 10;
 
       for (let i = 0; i < totalSamples; i++) {
-        // 静止画データをループで再利用
-        const imageData = resizedCtx.getImageData(0, 0, 224, 224);
-        const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
+        // 元画像を加工するための新しいキャンバスを作成
+        const processedCanvas = document.createElement('canvas');
+        processedCanvas.width = width;
+        processedCanvas.height = height;
+        const processedCtx = processedCanvas.getContext('2d');
+
+        // ランダムな回転角度を生成（例: -5度から+5度）
+        const rotationAngle = (Math.random() - 0.5) * 10 * Math.PI / 180;
+        
+        // 回転の中心を画像の中心に設定
+        processedCtx.translate(width / 2, height / 2);
+        processedCtx.rotate(rotationAngle);
+        processedCtx.drawImage(originalCanvas, -width / 2, -height / 2, width, height);
+        
+        // 加工済みの画像をモデルの入力サイズにリサイズ
+        const resizedCanvas = document.createElement('canvas');
+        resizedCanvas.width = 224;
+        resizedCanvas.height = 224;
+        const resizedCtx = resizedCanvas.getContext('2d');
+        resizedCtx.drawImage(processedCanvas, 0, 0, 224, 224);
+
+        const resizedImageData = resizedCtx.getImageData(0, 0, 224, 224);
+        const tensor = tf.browser.fromPixels(resizedImageData).toFloat().div(tf.scalar(255)).expandDims();
 
         const predictions = await model.predict(tensor).array();
         const scores = predictions ? predictions.flat() : [];
