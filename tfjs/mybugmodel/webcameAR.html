@@ -31,7 +31,7 @@
       z-index: 5;
       pointer-events: none;
     }
-  
+
     #controlPanel {
       position: absolute;
       bottom: 10px;
@@ -295,16 +295,15 @@
 
       const labels = [];
       const confidenceThreshold = 0.90;
+      const totalSamples = 10;
 
-      for (let i = 0; i < 50; i++) {
-        // ビデオフレームをキャプチャ
+      for (let i = 0; i < totalSamples; i++) {
         const tempCanvas = document.createElement('canvas');
         tempCanvas.width = width;
         tempCanvas.height = height;
         const tempCtx = tempCanvas.getContext('2d');
         tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
 
-        // キャプチャした画像をモデルの入力サイズにリサイズ
         const resizedCanvas = document.createElement('canvas');
         resizedCanvas.width = 224;
         resizedCanvas.height = 224;
@@ -323,8 +322,6 @@
         if (topScore >= confidenceThreshold && topLabel) {
           labels.push(topLabel);
         }
-
-        // 次のキャプチャのために少し待つ
         await new Promise(resolve => setTimeout(resolve, 100));
       }
 
@@ -344,6 +341,7 @@
       }
 
       const finalLabel = getMostFrequentLabel(labels);
+      const finalCount = finalLabel ? labels.filter(l => l === finalLabel).length : 0;
 
       if (identifiedObject) {
         identifiedObject.parentNode.removeChild(identifiedObject);
@@ -354,7 +352,7 @@
 
       if (finalLabel) {
         const labelData = labelInfo[finalLabel];
-        const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}\n${labels.length}回中${labels.filter(l => l === finalLabel).length}回一致`;
+        const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}\n一致回数：${finalCount}/${totalSamples}回`;
         infoBubble.setAttribute('visible', true);
         bubbleText.setAttribute('value', template);
 
