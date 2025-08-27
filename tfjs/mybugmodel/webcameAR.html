@@ -283,7 +283,7 @@
     predictButton.addEventListener('click', async () => {
       if (!model || points.length < 2) return;
 
-      predictButton.disabled = true; // 複数回押されないように無効化
+      predictButton.disabled = true;
 
       const minX = Math.min(...points.map(p => p.x));
       const minY = Math.min(...points.map(p => p.y));
@@ -293,22 +293,24 @@
       const height = maxY - minY;
       if (width <= 0 || height <= 0) return;
 
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
-
-      const resizedCanvas = document.createElement('canvas');
-      resizedCanvas.width = 224;
-      resizedCanvas.height = 224;
-      const resizedCtx = resizedCanvas.getContext('2d');
-
       const labels = [];
-      const confidenceThreshold = 0.90; // 信頼度のしきい値を90%に設定
+      const confidenceThreshold = 0.90;
 
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 10; i++) {
+        // ビデオフレームをキャプチャ
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+
+        // キャプチャした画像をモデルの入力サイズにリサイズ
+        const resizedCanvas = document.createElement('canvas');
+        resizedCanvas.width = 224;
+        resizedCanvas.height = 224;
+        const resizedCtx = resizedCanvas.getContext('2d');
         resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
+
         const imageData = resizedCtx.getImageData(0, 0, 224, 224);
         const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
@@ -321,9 +323,11 @@
         if (topScore >= confidenceThreshold && topLabel) {
           labels.push(topLabel);
         }
+
+        // 次のキャプチャのために少し待つ
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // 最も多く出現したラベルを取得する関数
       function getMostFrequentLabel(arr) {
         if (arr.length === 0) return null;
         const counts = {};
@@ -341,7 +345,6 @@
 
       const finalLabel = getMostFrequentLabel(labels);
 
-      // 古いオブジェクトを削除
       if (identifiedObject) {
         identifiedObject.parentNode.removeChild(identifiedObject);
         identifiedObject = null;
@@ -355,7 +358,6 @@
         infoBubble.setAttribute('visible', true);
         bubbleText.setAttribute('value', template);
 
-        // 以下、元の3Dオブジェクト表示ロジック
         if (labelData.show3DObject) {
           const camera = document.querySelector('#mainCamera');
           const targetPosition = new THREE.Vector3(0, 0, -1.5);
@@ -397,7 +399,6 @@
           infoBubble.setAttribute('position', infoBubblePosition);
         }
       } else {
-        // 90%以上の信頼度を持つラベルが見つからなかった場合
         infoBubble.setAttribute('visible', true);
         bubbleText.setAttribute('value', `分類できませんでした。`);
         const camera = document.querySelector('#mainCamera');
