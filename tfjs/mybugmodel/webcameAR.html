@@ -167,6 +167,173 @@
 
     async function setupCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: '
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        video.srcObject = stream;
+        video.addEventListener('loadedmetadata', () => {
+          controlPanel.style.display = 'flex';
+          drawingCanvas.style.pointerEvents = "auto";
+        });
+      } catch (err) {
+        alert("カメラへのアクセスを許可してください。");
+      }
+    }
 
-                                                                           
+    setupCamera();
+
+    ctx.strokeStyle = '#007bff';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    drawingCanvas.addEventListener('touchstart', e => {
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      isDrawing = true;
+      const t = e.touches[0];
+      points = [{ x: t.clientX, y: t.clientY }];
+      ctx.beginPath();
+      ctx.moveTo(t.clientX, t.clientY);
+    });
+
+    drawingCanvas.addEventListener('touchmove', e => {
+      if (!isDrawing || e.touches.length !== 1) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      points.push({ x: t.clientX, y: t.clientY });
+      ctx.lineTo(t.clientX, t.clientY);
+      ctx.stroke();
+      predictButton.disabled = false;
+    });
+
+    drawingCanvas.addEventListener('touchend', () => {
+      isDrawing = false;
+      ctx.closePath();
+    });
+
+    clearButton.addEventListener('click', () => {
+      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+      points = [];
+      predictButton.disabled = true;
+      infoBubble.setAttribute('visible', false);
+      if (identifiedObject) {
+        identifiedObject.parentNode.removeChild(identifiedObject);
+        identifiedObject = null;
+      }
+    });
+
+    predictButton.addEventListener('click', () => {
+      if (!model || points.length < 2) return;
+
+      const minX = Math.min(...points.map(p => p.x));
+      const minY = Math.min(...points.map(p => p.y));
+      const maxX = Math.max(...points.map(p => p.x));
+      const maxY = Math.max(...points.map(p => p.y));
+      const width = maxX - minX;
+      const height = maxY - minY;
+      if (width <= 0 || height <= 0) return;
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+
+      const resizedCanvas = document.createElement('canvas');
+      resizedCanvas.width = 224;
+      resizedCanvas.height = 224;
+      const resizedCtx = resizedCanvas.getContext('2d');
+      resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
+
+      const imageData = resizedCtx.getImageData(0, 0, 224, 224);
+      const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
+
+      model.predict(tensor).array().then(predictions => {
+        const scores = predictions ? predictions.flat() : [];
+        const topResultIndex = scores.indexOf(Math.max(...scores));
+        const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
+
+        const labelData = labelInfo[topLabel];
+        const bubbleText = document.getElementById('bubbleText');
+
+        if (identifiedObject) {
+          identifiedObject.parentNode.removeChild(identifiedObject);
+          identifiedObject = null;
+        }
+
+        if (labelData) {
+          const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}`;
+          bubbleText.setAttribute('value', template);
+
+          const camera = document.querySelector('#mainCamera');
+          const cameraWorldPos = new THREE.Vector3();
+          const cameraDirection = new THREE.Vector3();
+          camera.object3D.getWorldPosition(cameraWorldPos);
+          camera.object3D.getWorldDirection(cameraDirection);
+          cameraDirection.multiplyScalar(1.5);
+          const objectPosition = cameraWorldPos.clone().add(cameraDirection);
+
+          if (labelData.show3DObject) {
+            const newObject = document.createElement('a-entity');
+            newObject.setAttribute('id', 'identifiedObject');
+            newObject.setAttribute('position', `${objectPosition.x} ${objectPosition.y} ${objectPosition.z}`);
+            newObject.setAttribute('scale', labelData.scale || '0.5 0.5 0.5');
+            if (labelData.model) {
+              newObject.setAttribute('gltf-model', `url(${labelData.model})`);
+            } else {
+              newObject.setAttribute('geometry', 'primitive: box');
+              newObject.setAttribute('material', 'color: #4CAF50');
+            }
+            scene.appendChild(newObject);
+            identifiedObject = newObject;
+
+            const offset = labelData.arOffset || { x: 0.3, y: 0.5, z: 0.1 };
+            const bubblePos = objectPosition.clone().add(new THREE.Vector3(offset.x, offset.y, offset.z));
+            infoBubble.setAttribute('position', `${bubblePos.x} ${bubblePos.y} ${bubblePos.z}`);
+          } else {
+            infoBubble.setAttribute('position', `${objectPosition.x} ${objectPosition.y + 0.5} ${objectPosition.z}`);
+          }
+
+          infoBubble.setAttribute('visible', true);
+        } else {
+          bubbleText.setAttribute('value', `分類結果：${topLabel}`);
+          infoBubble.setAttribute('visible', true);
+        }
+
+        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        points = [];
+        predictButton.disabled = true;
+      });
+    });
+
+    AFRAME.registerComponent('face-camera', {
+      tick: function () {
+        const camera = document.querySelector('#mainCamera');
+        this.el.object3D.lookAt(camera.object3D.getWorldPosition(new THREE.Vector3()));
+      }
+    });
+
+    AFRAME.registerComponent('tail-update', {
+      tick: function () {
+        if (!identifiedObject || !infoBubble.getAttribute('visible')) return;
+
+        const bubblePos = new THREE.Vector3();
+        infoBubble.object3D.getWorldPosition(bubblePos);
+        const targetPos = new THREE.Vector3();
+        identifiedObject.object3D.getWorldPosition(targetPos);
+
+        const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
+        dir.y = 0;
+        if (dir.length() < 0.001) return;
+        dir.normalize();
+        const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+        infoBubble.querySelector('#tailBlack')?.setAttribute('rotation', `0 ${angle} 0`);
+        infoBubble.querySelector('#tailWhite')?.setAttribute('rotation', `0 ${angle} 0`);
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      infoBubble.setAttribute('tail-update', '');
+    });
+  </script>
+</body>
+</html>
