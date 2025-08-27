@@ -110,7 +110,7 @@
       <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
     </a-assets>
 
-    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" face-camera-y tail-update>
+    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" look-at="[camera]" face-camera-y tail-update>
       <a-plane color="#8b5a2b" width="2.1" height="1.1" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
       <a-plane color="#34495e" width="2.0" height="1.0" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
       <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.07" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
