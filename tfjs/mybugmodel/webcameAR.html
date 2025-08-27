@@ -110,7 +110,7 @@
       <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
     </a-assets>
 
-    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" look-at="[camera]" face-camera-y tail-update>
+    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" face-camera-y tail-update>
       <a-plane color="#8b5a2b" width="2.1" height="1.1" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
       <a-plane color="#34495e" width="2.0" height="1.0" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
       <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.07" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
@@ -293,23 +293,25 @@
       const height = maxY - minY;
       if (width <= 0 || height <= 0) return;
 
+      // ボタンを押した瞬間の静止画を1枚だけキャプチャ
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+
+      const resizedCanvas = document.createElement('canvas');
+      resizedCanvas.width = 224;
+      resizedCanvas.height = 224;
+      const resizedCtx = resizedCanvas.getContext('2d');
+      resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
+      
       const labels = [];
-      const confidenceThreshold = 0.99;
-      const totalSamples = 50;
+      const confidenceThreshold = 0.90;
+      const totalSamples = 30;
 
       for (let i = 0; i < totalSamples; i++) {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = width;
-        tempCanvas.height = height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
-
-        const resizedCanvas = document.createElement('canvas');
-        resizedCanvas.width = 224;
-        resizedCanvas.height = 224;
-        const resizedCtx = resizedCanvas.getContext('2d');
-        resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
-
+        // 静止画データをループで再利用
         const imageData = resizedCtx.getImageData(0, 0, 224, 224);
         const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
@@ -322,7 +324,6 @@
         if (topScore >= confidenceThreshold && topLabel) {
           labels.push(topLabel);
         }
-        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
       function getMostFrequentLabel(arr) {
