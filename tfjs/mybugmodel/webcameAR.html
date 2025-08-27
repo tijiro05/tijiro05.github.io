@@ -294,8 +294,8 @@
       if (width <= 0 || height <= 0) return;
 
       const labels = [];
-      const confidenceThreshold = 0.90;
-      const totalSamples = 10;
+      const confidenceThreshold = 0.99;
+      const totalSamples = 100;
 
       for (let i = 0; i < totalSamples; i++) {
         const tempCanvas = document.createElement('canvas');
