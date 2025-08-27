@@ -309,10 +309,8 @@
       model.predict(tensor).array().then(predictions => {
         const scores = predictions ? predictions.flat() : [];
         const topResultIndex = scores.indexOf(Math.max(...scores));
+        const topScore = scores[topResultIndex];
         const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
-
-        const labelData = labelInfo[topLabel];
-        const bubbleText = document.getElementById('bubbleText');
 
         // 古いオブジェクトを削除
         if (identifiedObject) {
@@ -320,43 +318,60 @@
           identifiedObject = null;
         }
 
-        if (labelData) {
-          const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}`;
-          infoBubble.setAttribute('visible', true);
-          bubbleText.setAttribute('value', template);
+        const bubbleText = document.getElementById('bubbleText');
+        const confidenceThreshold = 0.90; // 信頼度のしきい値を90%に設定
 
-          if (labelData.show3DObject) {
-            const camera = document.querySelector('#mainCamera');
-            const targetPosition = new THREE.Vector3(0, 0, -1.5);
-            targetPosition.applyQuaternion(camera.object3D.quaternion);
-            targetPosition.add(camera.object3D.position);
+        if (topScore >= confidenceThreshold) {
+          const labelData = labelInfo[topLabel];
+          if (labelData) {
+            const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}\n信頼度：${(topScore * 100).toFixed(1)}%`;
+            infoBubble.setAttribute('visible', true);
+            bubbleText.setAttribute('value', template);
 
-            const newObject = document.createElement('a-entity');
-            newObject.setAttribute('id', 'identifiedObject');
-            newObject.setAttribute('position', targetPosition.x + ' ' + targetPosition.y + ' ' + targetPosition.z);
-            newObject.setAttribute('scale', labelData.scale || '0.5 0.5 0.5');
-            if (labelData.model) {
-              newObject.setAttribute('gltf-model', `url(${labelData.model})`);
+            // 以下、元の3Dオブジェクト表示ロジック
+            if (labelData.show3DObject) {
+              const camera = document.querySelector('#mainCamera');
+              const targetPosition = new THREE.Vector3(0, 0, -1.5);
+              targetPosition.applyQuaternion(camera.object3D.quaternion);
+              targetPosition.add(camera.object3D.position);
+
+              const newObject = document.createElement('a-entity');
+              newObject.setAttribute('id', 'identifiedObject');
+              newObject.setAttribute('position', targetPosition.x + ' ' + targetPosition.y + ' ' + targetPosition.z);
+              newObject.setAttribute('scale', labelData.scale || '0.5 0.5 0.5');
+              if (labelData.model) {
+                newObject.setAttribute('gltf-model', `url(${labelData.model})`);
+              } else {
+                newObject.setAttribute('geometry', 'primitive: box');
+                newObject.setAttribute('material', 'color: #4CAF50');
+              }
+              scene.appendChild(newObject);
+              identifiedObject = newObject;
+
+              const objPos = identifiedObject.getAttribute('position');
+              const offset = labelData.arOffset || {
+                x: 0.3,
+                y: 0.5,
+                z: 0.1
+              };
+              infoBubble.setAttribute('position', {
+                x: objPos.x + offset.x,
+                y: objPos.y + offset.y,
+                z: objPos.z + offset.z
+              });
             } else {
-              newObject.setAttribute('geometry', 'primitive: box');
-              newObject.setAttribute('material', 'color: #4CAF50');
+              infoBubble.setAttribute('visible', true);
+              const camera = document.querySelector('#mainCamera');
+              const cameraWorldPosition = new THREE.Vector3();
+              camera.object3D.getWorldPosition(cameraWorldPosition);
+              const infoBubblePosition = new THREE.Vector3(0, 0, -1);
+              infoBubblePosition.applyQuaternion(camera.object3D.quaternion);
+              infoBubblePosition.add(cameraWorldPosition);
+              infoBubble.setAttribute('position', infoBubblePosition);
             }
-            scene.appendChild(newObject);
-            identifiedObject = newObject;
-
-            const objPos = identifiedObject.getAttribute('position');
-            const offset = labelData.arOffset || {
-              x: 0.3,
-              y: 0.5,
-              z: 0.1
-            };
-            infoBubble.setAttribute('position', {
-              x: objPos.x + offset.x,
-              y: objPos.y + offset.y,
-              z: objPos.z + offset.z
-            });
           } else {
             infoBubble.setAttribute('visible', true);
+            bubbleText.setAttribute('value', `分類結果：${topLabel}\n信頼度：${(topScore * 100).toFixed(1)}%`);
             const camera = document.querySelector('#mainCamera');
             const cameraWorldPosition = new THREE.Vector3();
             camera.object3D.getWorldPosition(cameraWorldPosition);
@@ -366,8 +381,10 @@
             infoBubble.setAttribute('position', infoBubblePosition);
           }
         } else {
+          // 90%未満の場合
           infoBubble.setAttribute('visible', true);
-          bubbleText.setAttribute('value', `分類結果：${topLabel}`);
+          const template = `分類できませんでした\n（信頼度：${(topScore * 100).toFixed(1)}%）`;
+          bubbleText.setAttribute('value', template);
           const camera = document.querySelector('#mainCamera');
           const cameraWorldPosition = new THREE.Vector3();
           camera.object3D.getWorldPosition(cameraWorldPosition);
