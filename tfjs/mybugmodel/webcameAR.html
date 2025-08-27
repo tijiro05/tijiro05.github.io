@@ -1,118 +1,203 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8" />
-    <title>動植物識別AR</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
-    <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
-    <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
-    <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; 
-        }
-        #webcam { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            object-fit: cover; 
-            z-index: 0; 
-        }
-        #drawingCanvas { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            z-index: 5; 
-            pointer-events: none; 
-        }
-        #controlPanel { 
-            position: absolute; 
-            bottom: 10px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 10px; 
-            border-radius: 8px; 
-            z-index: 10; 
-            font-family: sans-serif; 
-            width: 90%; 
-            max-width: 500px; 
-            text-align: center; 
-            display: none; 
-            justify-content: space-around; 
-            gap: 10px; 
-        }
-        #predictButton, #clearButton { 
-            padding: 10px 20px; 
-            font-size: 18px; 
-            border: none; 
-            border-radius: 8px; 
-            color: white; 
-            cursor: pointer; 
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
-            transition: background-color 0.3s; 
-        }
-        #predictButton { 
-            background-color: #4caf50; 
-        } 
-        #predictButton:hover { 
-            background-color: #45a049; 
-        } 
-        #predictButton:disabled { 
-            background-color: #ccc; 
-            cursor: not-allowed; 
-        }
-        #clearButton { 
-            background-color: #f44336; 
-        } 
-        #clearButton:hover { 
-            background-color: #d32f2f; 
-        }
-        a-scene { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100vw; 
-            height: 100vh; 
-            z-index: 1; 
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <title>動植物識別AR</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.0.0/dist/tf.min.js"></script>
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-troika-text/dist/aframe-troika-text.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #webcam {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      z-index: 0;
+    }
+
+    #drawingCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    #controlPanel {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      z-index: 10;
+      font-family: sans-serif;
+      width: 90%;
+      max-width: 500px;
+      text-align: center;
+      display: none;
+      justify-content: space-around;
+      gap: 10px;
+    }
+
+    #predictButton,
+    #clearButton {
+      padding: 10px 20px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.3s;
+    }
+
+    #predictButton {
+      background-color: #4caf50;
+    }
+
+    #predictButton:hover {
+      background-color: #45a049;
+    }
+
+    #predictButton:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    #clearButton {
+      background-color: #f44336;
+    }
+
+    #clearButton:hover {
+      background-color: #d32f2f;
+    }
+
+    a-scene {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 1;
+    }
+  </style>
 </head>
 <body>
-<video id="webcam" autoplay playsinline muted></video>
-<canvas id="drawingCanvas"></canvas>
-<div id="controlPanel">
+  <video id="webcam" autoplay playsinline muted></video>
+  <canvas id="drawingCanvas"></canvas>
+  <div id="controlPanel">
     <button id="predictButton" disabled>分類する</button>
     <button id="clearButton">消去</button>
-</div>
+  </div>
 
-<a-scene embedded vr-mode-ui="enabled:false" ar-mode="false">
-    <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5"></a-box>
+  <a-scene embedded vr-mode-ui="enabled:false" ar-mode="false">
+    <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5" color="#4CAF50"></a-box>
 
     <a-entity id="cameraRig" position="0 0 0">
-        <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
+      <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
     </a-entity>
 
     <a-assets>
-        <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
+      <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
     </a-assets>
 
     <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5" face-camera-y tail-update>
-        <a-plane color="#8b5a2b" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
-        <a-plane color="#34495e" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
-        <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
-        <a-box id="tailBlack" color="#000000" depth="0.05" height="0.05" width="0.5" position="0 -0.575 0" visible="true"></a-box>
-        <a-box id="tailWhite" color="#FFFFFF" depth="0.05" height="0.05" width="0.45" position="0 -0.525 0" visible="true"></a-box>
+      <a-plane color="#8b5a2b" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
+      <a-plane color="#34495e" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
+      <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
+      <a-box id="tailBlack" color="#000000" depth="0.05" height="0.05" width="0.5" position="0 -0.575 0" visible="true"></a-box>
+      <a-box id="tailWhite" color="#FFFFFF" depth="0.05" height="0.05" width="0.45" position="0 -0.525 0" visible="true"></a-box>
     </a-entity>
-</a-scene>
+  </a-scene>
 
-<script>
+  <script>
     const modelPath = 'model/model.json';
-    const classLabels = ['蚊','バッタ','てんとう虫','アブラムシ','カメムシ','アリ','ハチ','チョウ','トンボ','セミ','シロツメクサ'];
+    const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
+    const labelInfo = {
+      '蚊': {
+        name: '蚊',
+        category: '昆虫',
+        description: '血を吸うことがありますが、植物の蜜を吸うこともあります。',
+        show3DObject: false
+      },
+      'バッタ': {
+        name: 'バッタ',
+        category: '昆虫',
+        description: '草原に多く生息し、高く跳ねることが特徴です。',
+        show3DObject: false
+      },
+      'てんとう虫': {
+        name: 'てんとう虫',
+        category: '昆虫',
+        description: '赤い背中に黒い斑点があり、アブラムシを食べます。',
+        show3DObject: false
+      },
+      'アブラムシ': {
+        name: 'アブラムシ',
+        category: '昆虫',
+        description: '植物に群がって樹液を吸います。',
+        show3DObject: false
+      },
+      'カメムシ': {
+        name: 'カメムシ',
+        category: '昆虫',
+        description: '独特な臭いを持つことで知られています。',
+        show3DObject: false
+      },
+      'アリ': {
+        name: 'アリ',
+        category: '昆虫',
+        description: '集団で行動し、巣を作ります。',
+        show3DObject: false
+      },
+      'ハチ': {
+        name: 'ハチ',
+        category: '昆虫',
+        description: '花粉を運び、時には刺すこともあります。',
+        show3DObject: false
+      },
+      'チョウ': {
+        name: 'チョウ',
+        category: '昆虫',
+        description: '美しい羽を持ち、花の蜜を吸います。',
+        show3DObject: false
+      },
+      'トンボ': {
+        name: 'トンボ',
+        category: '昆虫',
+        description: '空中を素早く飛び回る捕食者です。',
+        show3DObject: false
+      },
+      'セミ': {
+        name: 'セミ',
+        category: '昆虫',
+        description: '夏に大きな鳴き声で知られています。',
+        show3DObject: false
+      },
+      'シロツメクサ': {
+        name: 'シロツメクサ',
+        category: 'マメ科シャジクソウ属',
+        description: '花言葉：幸運。四つ葉のクローバーで有名です。',
+        show3DObject: true,
+        arOffset: {
+          x: 0.3,
+          y: 0.5,
+          z: 0.1
+        }
+      }
+    };
+
     let model;
     const video = document.getElementById('webcam');
     const drawingCanvas = document.getElementById('drawingCanvas');
@@ -120,13 +205,12 @@
     const predictButton = document.getElementById('predictButton');
     const clearButton = document.getElementById('clearButton');
     const controlPanel = document.getElementById('controlPanel');
-
     let isDrawing = false;
     let points = [];
 
     function resizeCanvas() {
-        drawingCanvas.width = video.offsetWidth;
-        drawingCanvas.height = video.offsetHeight;
+      drawingCanvas.width = video.offsetWidth;
+      drawingCanvas.height = video.offsetHeight;
     }
     window.addEventListener('resize', resizeCanvas);
     video.addEventListener('loadedmetadata', resizeCanvas);
@@ -134,197 +218,187 @@
     tf.loadLayersModel(modelPath).then(m => model = m);
 
     async function setupCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
-            video.srcObject = stream;
-
-            video.addEventListener('loadedmetadata', async () => {
-                controlPanel.style.display = 'flex';
-                if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
-                    try {
-                        const res = await DeviceOrientationEvent.requestPermission();
-                        if (res === "granted") { 
-                            drawingCanvas.style.pointerEvents = "auto"; 
-                        }
-                    } catch (e) { 
-                        console.warn("センサー許可拒否", e); 
-                    }
-                } else { 
-                    drawingCanvas.style.pointerEvents = "auto"; 
-                }
-            });
-        } catch(err) {
-            console.error("カメラアクセス拒否", err);
-            alert("カメラへのアクセスを許可してください。");
-        }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'environment'
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        video.addEventListener('loadedmetadata', () => {
+          controlPanel.style.display = 'flex';
+          drawingCanvas.style.pointerEvents = "auto";
+        });
+      } catch (err) {
+        alert("カメラへのアクセスを許可してください。");
+      }
     }
     setupCamera();
 
-    // 描画設定
     ctx.strokeStyle = '#007bff';
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
     drawingCanvas.addEventListener('touchstart', e => {
-        if (e.touches.length !== 1) return;
-        e.preventDefault();
-        isDrawing = true;
-        const t = e.touches[0];
-        points = [{x: t.clientX, y: t.clientY}];
-        ctx.beginPath(); 
-        ctx.moveTo(t.clientX, t.clientY);
+      if (e.touches.length !== 1) return;
+      e.preventDefault();
+      isDrawing = true;
+      const t = e.touches[0];
+      points = [{
+        x: t.clientX,
+        y: t.clientY
+      }];
+      ctx.beginPath();
+      ctx.moveTo(t.clientX, t.clientY);
     });
+
     drawingCanvas.addEventListener('touchmove', e => {
-        if (!isDrawing || e.touches.length !== 1) return;
-        e.preventDefault();
-        const t = e.touches[0];
-        points.push({x: t.clientX, y: t.clientY});
-        ctx.lineTo(t.clientX, t.clientY);
-        ctx.stroke();
-        predictButton.disabled = false;
+      if (!isDrawing || e.touches.length !== 1) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      points.push({
+        x: t.clientX,
+        y: t.clientY
+      });
+      ctx.lineTo(t.clientX, t.clientY);
+      ctx.stroke();
+      predictButton.disabled = false;
     });
+
     drawingCanvas.addEventListener('touchend', () => {
-        isDrawing = false; 
-        ctx.closePath();
+      isDrawing = false;
+      ctx.closePath();
     });
 
     clearButton.addEventListener('click', () => {
-        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        points = [];
-        predictButton.disabled = true;
-        const cloverText = document.getElementById('cloverText');
-        const cloverObj = document.getElementById('cloverObj');
-        if (cloverText) cloverText.setAttribute('visible', false);
-        if (cloverObj) cloverObj.setAttribute('visible', false);
+      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+      points = [];
+      predictButton.disabled = true;
+      document.getElementById('cloverText').setAttribute('visible', false);
+      document.getElementById('cloverObj').setAttribute('visible', false);
     });
 
     predictButton.addEventListener('click', () => {
-        if (!model || points.length < 2) return;
-        const minX = Math.min(...points.map(p => p.x));
-        const minY = Math.min(...points.map(p => p.y));
-        const maxX = Math.max(...points.map(p => p.x));
-        const maxY = Math.max(...points.map(p => p.y));
-        const width = maxX - minX;
-        const height = maxY - minY;
-        if (width <= 0 || height <= 0) return;
+      if (!model || points.length < 2) return;
 
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = width; 
-        tempCanvas.height = height;
-        const tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
+      const minX = Math.min(...points.map(p => p.x));
+      const minY = Math.min(...points.map(p => p.y));
+      const maxX = Math.max(...points.map(p => p.x));
+      const maxY = Math.max(...points.map(p => p.y));
+      const width = maxX - minX;
+      const height = maxY - minY;
+      if (width <= 0 || height <= 0) return;
 
-        const resizedCanvas = document.createElement('canvas');
-        resizedCanvas.width = 224; 
-        resizedCanvas.height = 224;
-        const resizedCtx = resizedCanvas.getContext('2d');
-        resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = width;
+      tempCanvas.height = height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
 
-        const imageData = resizedCtx.getImageData(0, 0, 224, 224);
-        const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
+      const resizedCanvas = document.createElement('canvas');
+      resizedCanvas.width = 224;
+      resizedCanvas.height = 224;
+      const resizedCtx = resizedCanvas.getContext('2d');
+      resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
 
-        model.predict(tensor).array().then(predictions => {
-            const scores = predictions ? predictions.flat() : [];
-            const topResultIndex = scores.indexOf(Math.max(...scores));
-            const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
-            const cloverText = document.getElementById('cloverText');
-            const bubbleText = document.getElementById('bubbleText');
-            const cloverObj = document.getElementById('cloverObj');
-            if (!cloverText || !bubbleText || !cloverObj) { 
-                console.error("AR要素が見つかりません"); 
-                return; 
-            }
+      const imageData = resizedCtx.getImageData(0, 0, 224, 224);
+      const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
 
-            if (topLabel === 'シロツメクサ') {
-                cloverText.setAttribute('visible', true);
-                bubbleText.setAttribute('value', "なまえ：シロツメクサ\n種類   ：マメ科シャジクソウ属\n花言葉：幸運");
+      model.predict(tensor).array().then(predictions => {
+        const scores = predictions ? predictions.flat() : [];
+        const topResultIndex = scores.indexOf(Math.max(...scores));
+        const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
 
-                const camera = document.querySelector('#mainCamera');
-                if (camera) {
-                    const cameraWorldPosition = new THREE.Vector3();
-                    camera.object3D.getWorldPosition(cameraWorldPosition);
-                    const targetPosition = new THREE.Vector3(0, 0, -1.5);
-                    targetPosition.applyQuaternion(camera.object3D.quaternion);
-                    targetPosition.add(cameraWorldPosition);
-                    cloverObj.setAttribute('position', targetPosition);
-                    cloverObj.setAttribute('visible', false);
+        const labelData = labelInfo[topLabel];
+        const cloverText = document.getElementById('cloverText');
+        const bubbleText = document.getElementById('bubbleText');
+        const cloverObj = document.getElementById('cloverObj');
 
-                    const objPos = cloverObj.getAttribute('position');
-                    cloverText.setAttribute('position', {x: objPos.x + 0.3, y: objPos.y + 0.5, z: objPos.z + 0.1});
-                }
-            } else {
-                cloverText.setAttribute('visible', false);
-                cloverObj.setAttribute('visible', false);
-                bubbleText.setAttribute('value', topLabel);
-            }
+        if (labelData) {
+          const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}`;
+          cloverText.setAttribute('visible', true);
+          bubbleText.setAttribute('value', template);
 
-            ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-            points = [];
-            predictButton.disabled = true;
-        });
+          const camera = document.querySelector('#mainCamera');
+          const cameraWorldPosition = new THREE.Vector3();
+          camera.object3D.getWorldPosition(cameraWorldPosition);
+          const targetPosition = new THREE.Vector3(0, 0, -1.5);
+          targetPosition.applyQuaternion(camera.object3D.quaternion);
+          targetPosition.add(cameraWorldPosition);
+
+          cloverObj.setAttribute('position', targetPosition);
+          cloverObj.setAttribute('visible', labelData.show3DObject || false);
+
+          const objPos = cloverObj.getAttribute('position');
+          const offset = labelData.arOffset || {
+            x: 0.3,
+            y: 0.5,
+            z: 0.1
+          };
+          cloverText.setAttribute('position', {
+            x: objPos.x + offset.x,
+            y: objPos.y + offset.y,
+            z: objPos.z + offset.z
+          });
+        } else {
+          cloverText.setAttribute('visible', true);
+          bubbleText.setAttribute('value', `分類結果：${topLabel}`);
+          cloverObj.setAttribute('visible', false);
+        }
+
+        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        points = [];
+        predictButton.disabled = true;
+      });
     });
 
-    // -------------------------------------------
-    // Y軸のみ向くコンポーネント
     AFRAME.registerComponent('face-camera-y', {
-        tick: function() {
-            const camera = document.querySelector('#mainCamera');
-            if (!camera) return;
-            const obj3D = this.el.object3D;
-            const cameraPos = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraPos);
-            const objPos = new THREE.Vector3();
-            obj3D.getWorldPosition(objPos);
-            const dir = new THREE.Vector3();
-            dir.subVectors(cameraPos, objPos);
-            dir.y = 0; // 水平のみ
-            dir.normalize();
-            const angle = Math.atan2(dir.x, dir.z);
-            obj3D.rotation.y = angle;
-        }
+      tick: function() {
+        const camera = document.querySelector('#mainCamera');
+        const obj3D = this.el.object3D;
+        const cameraPos = new THREE.Vector3();
+        camera.object3D.getWorldPosition(cameraPos);
+        const objPos = new THREE.Vector3();
+        obj3D.getWorldPosition(objPos);
+        const dir = new THREE.Vector3().subVectors(cameraPos, objPos);
+        dir.y = 0;
+        dir.normalize();
+        obj3D.rotation.y = Math.atan2(dir.x, dir.z);
+      }
     });
 
-    // -------------------------------------------
-    // tail-update コンポーネント（矢印がオブジェクト方向を向く）
     AFRAME.registerComponent('tail-update', {
-        tick: function() {
-            const cloverText = document.getElementById('cloverText');
-            const tailBlack = document.getElementById('tailBlack');
-            const tailWhite = document.getElementById('tailWhite');
-            const cloverObj = document.getElementById('cloverObj');
-            if (!cloverText || !tailBlack || !tailWhite || !cloverObj || !cloverText.getAttribute('visible') || !cloverObj.getAttribute('visible')) return;
+      tick: function() {
+        const cloverText = document.getElementById('cloverText');
+        const tailBlack = document.getElementById('tailBlack');
+        const tailWhite = document.getElementById('tailWhite');
+        const cloverObj = document.getElementById('cloverObj');
+        if (!cloverText || !tailBlack || !tailWhite || !cloverObj || !cloverText.getAttribute('visible')) return;
 
-            const bubblePos = new THREE.Vector3();
-            cloverText.object3D.getWorldPosition(bubblePos);
+        const bubblePos = new THREE.Vector3();
+        cloverText.object3D.getWorldPosition(bubblePos);
+        const targetPos = new THREE.Vector3();
+        cloverObj.object3D.getWorldPosition(targetPos);
 
-            const targetPos = new THREE.Vector3();
-            cloverObj.object3D.getWorldPosition(targetPos);
-
-            const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-            dir.y = 0;
-            if (dir.length() < 0.001) {
-                tailBlack.setAttribute('rotation', '0 0 0');
-                tailWhite.setAttribute('rotation', '0 0 0');
-                tailBlack.setAttribute('position', '0 -0.575 0');
-                tailWhite.setAttribute('position', '0 -0.525 0');
-                return;
-            }
-            dir.normalize();
-            const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-            tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-            tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-            tailBlack.setAttribute('position', '0 -0.575 0');
-            tailWhite.setAttribute('position', '0 -0.525 0');
+        const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
+        dir.y = 0;
+        if (dir.length() < 0.001) {
+          tailBlack.setAttribute('rotation', '0 0 0');
+          tailWhite.setAttribute('rotation', '0 0 0');
+          return;
         }
+        dir.normalize();
+        const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
+        tailBlack.setAttribute('rotation', `0 ${angle} 0`);
+        tailWhite.setAttribute('rotation', `0 ${angle} 0`);
+      }
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        const cloverText = document.getElementById('cloverText');
-        if (cloverText) { 
-            cloverText.setAttribute('tail-update', ''); 
-        }
+      document.getElementById('cloverText')?.setAttribute('tail-update', '');
     });
-</script>
+  </script>
 </body>
 </html>
