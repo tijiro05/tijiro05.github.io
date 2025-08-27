@@ -110,7 +110,7 @@
       <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
     </a-assets>
 
-    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" face-camera-y tail-update>
+    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" face-camera tail-update>
       <a-plane color="#8b5a2b" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
       <a-plane color="#34495e" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
       <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.1" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
@@ -123,77 +123,23 @@
     const modelPath = 'model/model.json';
     const classLabels = ['蚊', 'バッタ', 'てんとう虫', 'アブラムシ', 'カメムシ', 'アリ', 'ハチ', 'チョウ', 'トンボ', 'セミ', 'シロツメクサ'];
     const labelInfo = {
-      '蚊': {
-        name: '蚊',
-        category: '昆虫',
-        description: '血を吸うことがありますが、植物の蜜を吸うこともあります。',
-        show3DObject: false
-      },
-      'バッタ': {
-        name: 'バッタ',
-        category: '昆虫',
-        description: '草原に多く生息し、高く跳ねることが特徴です。',
-        show3DObject: false
-      },
-      'てんとう虫': {
-        name: 'てんとう虫',
-        category: '昆虫',
-        description: '赤い背中に黒い斑点があり、アブラムシを食べます。',
-        show3DObject: false
-      },
-      'アブラムシ': {
-        name: 'アブラムシ',
-        category: '昆虫',
-        description: '植物に群がって樹液を吸います。',
-        show3DObject: false
-      },
-      'カメムシ': {
-        name: 'カメムシ',
-        category: '昆虫',
-        description: '独特な臭いを持つことで知られています。',
-        show3DObject: false
-      },
-      'アリ': {
-        name: 'アリ',
-        category: '昆虫',
-        description: '集団で行動し、巣を作ります。',
-        show3DObject: false
-      },
-      'ハチ': {
-        name: 'ハチ',
-        category: '昆虫',
-        description: '花粉を運び、時には刺すこともあります。',
-        show3DObject: false
-      },
-      'チョウ': {
-        name: 'チョウ',
-        category: '昆虫',
-        description: '美しい羽を持ち、花の蜜を吸います。',
-        show3DObject: false
-      },
-      'トンボ': {
-        name: 'トンボ',
-        category: '昆虫',
-        description: '空中を素早く飛び回る捕食者です。',
-        show3DObject: false
-      },
-      'セミ': {
-        name: 'セミ',
-        category: '昆虫',
-        description: '夏に大きな鳴き声で知られています。',
-        show3DObject: false
-      },
+      '蚊': { name: '蚊', category: '昆虫', description: '血を吸うことがありますが、植物の蜜を吸うこともあります。', show3DObject: false },
+      'バッタ': { name: 'バッタ', category: '昆虫', description: '草原に多く生息し、高く跳ねることが特徴です。', show3DObject: false },
+      'てんとう虫': { name: 'てんとう虫', category: '昆虫', description: '赤い背中に黒い斑点があり、アブラムシを食べます。', show3DObject: false },
+      'アブラムシ': { name: 'アブラムシ', category: '昆虫', description: '植物に群がって樹液を吸います。', show3DObject: false },
+      'カメムシ': { name: 'カメムシ', category: '昆虫', description: '独特な臭いを持つことで知られています。', show3DObject: false },
+      'アリ': { name: 'アリ', category: '昆虫', description: '集団で行動し、巣を作ります。', show3DObject: false },
+      'ハチ': { name: 'ハチ', category: '昆虫', description: '花粉を運び、時には刺すこともあります。', show3DObject: false },
+      'チョウ': { name: 'チョウ', category: '昆虫', description: '美しい羽を持ち、花の蜜を吸います。', show3DObject: false },
+      'トンボ': { name: 'トンボ', category: '昆虫', description: '空中を素早く飛び回る捕食者です。', show3DObject: false },
+      'セミ': { name: 'セミ', category: '昆虫', description: '夏に大きな鳴き声で知られています。', show3DObject: false },
       'シロツメクサ': {
         name: 'シロツメクサ',
         category: 'マメ科シャジクソウ属',
         description: '花言葉：幸運。四つ葉のクローバーで有名です。',
         show3DObject: true,
-        model: 'path/to/clover_model.gltf', // 例としてモデルパスを追加
-        arOffset: {
-          x: 0.3,
-          y: 0.5,
-          z: 0.1
-        }
+        model: 'path/to/clover_model.gltf',
+        arOffset: { x: 0.3, y: 0.5, z: 0.1 }
       }
     };
 
@@ -214,223 +160,13 @@
       drawingCanvas.width = video.offsetWidth;
       drawingCanvas.height = video.offsetHeight;
     }
+
     window.addEventListener('resize', resizeCanvas);
     video.addEventListener('loadedmetadata', resizeCanvas);
-
     tf.loadLayersModel(modelPath).then(m => model = m);
 
     async function setupCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: 'environment'
-          },
-          audio: false
-        });
-        video.srcObject = stream;
-        video.addEventListener('loadedmetadata', () => {
-          controlPanel.style.display = 'flex';
-          drawingCanvas.style.pointerEvents = "auto";
-        });
-      } catch (err) {
-        alert("カメラへのアクセスを許可してください。");
-      }
-    }
-    setupCamera();
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: '
 
-    ctx.strokeStyle = '#007bff';
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    drawingCanvas.addEventListener('touchstart', e => {
-      if (e.touches.length !== 1) return;
-      e.preventDefault();
-      isDrawing = true;
-      const t = e.touches[0];
-      points = [{
-        x: t.clientX,
-        y: t.clientY
-      }];
-      ctx.beginPath();
-      ctx.moveTo(t.clientX, t.clientY);
-    });
-
-    drawingCanvas.addEventListener('touchmove', e => {
-      if (!isDrawing || e.touches.length !== 1) return;
-      e.preventDefault();
-      const t = e.touches[0];
-      points.push({
-        x: t.clientX,
-        y: t.clientY
-      });
-      ctx.lineTo(t.clientX, t.clientY);
-      ctx.stroke();
-      predictButton.disabled = false;
-    });
-
-    drawingCanvas.addEventListener('touchend', () => {
-      isDrawing = false;
-      ctx.closePath();
-    });
-
-    clearButton.addEventListener('click', () => {
-      ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-      points = [];
-      predictButton.disabled = true;
-      infoBubble.setAttribute('visible', false);
-      if (identifiedObject) {
-        identifiedObject.parentNode.removeChild(identifiedObject);
-        identifiedObject = null;
-      }
-    });
-
-    predictButton.addEventListener('click', () => {
-      if (!model || points.length < 2) return;
-
-      const minX = Math.min(...points.map(p => p.x));
-      const minY = Math.min(...points.map(p => p.y));
-      const maxX = Math.max(...points.map(p => p.x));
-      const maxY = Math.max(...points.map(p => p.y));
-      const width = maxX - minX;
-      const height = maxY - minY;
-      if (width <= 0 || height <= 0) return;
-
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      const tempCtx = tempCanvas.getContext('2d');
-      tempCtx.drawImage(video, minX, minY, width, height, 0, 0, width, height);
-
-      const resizedCanvas = document.createElement('canvas');
-      resizedCanvas.width = 224;
-      resizedCanvas.height = 224;
-      const resizedCtx = resizedCanvas.getContext('2d');
-      resizedCtx.drawImage(tempCanvas, 0, 0, 224, 224);
-
-      const imageData = resizedCtx.getImageData(0, 0, 224, 224);
-      const tensor = tf.browser.fromPixels(imageData).toFloat().div(tf.scalar(255)).expandDims();
-
-      model.predict(tensor).array().then(predictions => {
-        const scores = predictions ? predictions.flat() : [];
-        const topResultIndex = scores.indexOf(Math.max(...scores));
-        const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
-
-        const labelData = labelInfo[topLabel];
-        const bubbleText = document.getElementById('bubbleText');
-
-        // 古いオブジェクトを削除
-        if (identifiedObject) {
-          identifiedObject.parentNode.removeChild(identifiedObject);
-          identifiedObject = null;
-        }
-
-        if (labelData) {
-          const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}`;
-          infoBubble.setAttribute('visible', true);
-          bubbleText.setAttribute('value', template);
-
-          if (labelData.show3DObject) {
-            const camera = document.querySelector('#mainCamera');
-            const targetPosition = new THREE.Vector3(0, 0, -1.5);
-            targetPosition.applyQuaternion(camera.object3D.quaternion);
-            targetPosition.add(camera.object3D.position);
-
-            const newObject = document.createElement('a-entity');
-            newObject.setAttribute('id', 'identifiedObject');
-            newObject.setAttribute('position', targetPosition.x + ' ' + targetPosition.y + ' ' + targetPosition.z);
-            newObject.setAttribute('scale', labelData.scale || '0.5 0.5 0.5');
-            if (labelData.model) {
-              newObject.setAttribute('gltf-model', `url(${labelData.model})`);
-            } else {
-              newObject.setAttribute('geometry', 'primitive: box');
-              newObject.setAttribute('material', 'color: #4CAF50');
-            }
-            scene.appendChild(newObject);
-            identifiedObject = newObject;
-
-            const objPos = identifiedObject.getAttribute('position');
-            const offset = labelData.arOffset || {
-              x: 0.3,
-              y: 0.5,
-              z: 0.1
-            };
-            infoBubble.setAttribute('position', {
-              x: objPos.x + offset.x,
-              y: objPos.y + offset.y,
-              z: objPos.z + offset.z
-            });
-          } else {
-            infoBubble.setAttribute('visible', true);
-            const camera = document.querySelector('#mainCamera');
-            const cameraWorldPosition = new THREE.Vector3();
-            camera.object3D.getWorldPosition(cameraWorldPosition);
-            const infoBubblePosition = new THREE.Vector3(0, 0, -1);
-            infoBubblePosition.applyQuaternion(camera.object3D.quaternion);
-            infoBubblePosition.add(cameraWorldPosition);
-            infoBubble.setAttribute('position', infoBubblePosition);
-          }
-        } else {
-          infoBubble.setAttribute('visible', true);
-          bubbleText.setAttribute('value', `分類結果：${topLabel}`);
-          const camera = document.querySelector('#mainCamera');
-          const cameraWorldPosition = new THREE.Vector3();
-          camera.object3D.getWorldPosition(cameraWorldPosition);
-          const infoBubblePosition = new THREE.Vector3(0, 0, -1);
-          infoBubblePosition.applyQuaternion(camera.object3D.quaternion);
-          infoBubblePosition.add(cameraWorldPosition);
-          infoBubble.setAttribute('position', infoBubblePosition);
-        }
-
-        ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        points = [];
-        predictButton.disabled = true;
-      });
-    });
-
-    AFRAME.registerComponent('face-camera-y', {
-      tick: function() {
-        const camera = document.querySelector('#mainCamera');
-        const obj3D = this.el.object3D;
-        const cameraPos = new THREE.Vector3();
-        camera.object3D.getWorldPosition(cameraPos);
-        const objPos = new THREE.Vector3();
-        obj3D.getWorldPosition(objPos);
-        const dir = new THREE.Vector3().subVectors(cameraPos, objPos);
-        dir.y = 0;
-        dir.normalize();
-        obj3D.rotation.y = Math.atan2(dir.x, dir.z);
-      }
-    });
-
-    AFRAME.registerComponent('tail-update', {
-      tick: function() {
-        if (!identifiedObject || !infoBubble.getAttribute('visible')) {
-          return;
-        }
-
-        const bubblePos = new THREE.Vector3();
-        infoBubble.object3D.getWorldPosition(bubblePos);
-        const targetPos = new THREE.Vector3();
-        identifiedObject.object3D.getWorldPosition(targetPos);
-
-        const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
-        dir.y = 0;
-        if (dir.length() < 0.001) {
-          return;
-        }
-        dir.normalize();
-        const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-        const tailBlack = infoBubble.querySelector('#tailBlack');
-        const tailWhite = infoBubble.querySelector('#tailWhite');
-        if (tailBlack) tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-        if (tailWhite) tailWhite.setAttribute('rotation', `0 ${angle} 0`);
-      }
-    });
-
-    document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('infoBubble')?.setAttribute('tail-update', '');
-    });
-  </script>
-</body>
-</html>
+                                                                           
