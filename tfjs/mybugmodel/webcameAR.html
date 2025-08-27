@@ -102,8 +102,6 @@
   </div>
 
   <a-scene embedded vr-mode-ui="enabled:false" ar-mode="false">
-    <a-box id="cloverObj" position="0 0 -1" visible="false" scale="0.5 0.5 0.5" color="#4CAF50"></a-box>
-
     <a-entity id="cameraRig" position="0 0 0">
       <a-entity id="mainCamera" camera look-controls position="0 1.6 0"></a-entity>
     </a-entity>
@@ -112,7 +110,7 @@
       <a-asset-item id="notojpFont" src="fonts/MPLUSRounded1c-Black.ttf"></a-asset-item>
     </a-assets>
 
-    <a-entity id="cloverText" visible="false" position="0 0 -0.5" scale="0.5 0.5 0.5" face-camera-y tail-update>
+    <a-entity id="infoBubble" visible="false" scale="0.5 0.5 0.5" face-camera-y tail-update>
       <a-plane color="#8b5a2b" width="2.5" height="1.2" position="0 0 -0.005" material="shader: flat; opacity: 1"></a-plane>
       <a-plane color="#34495e" width="2.4" height="1.1" position="0 0 0" material="shader: flat; opacity: 1"></a-plane>
       <a-troika-text id="bubbleText" font="#notojpFont" value="ここに結果が表示されます" font-size="0.12" color="#FFFFFF" textAlign="center" position="0 0 0.01"></a-troika-text>
@@ -190,6 +188,7 @@
         category: 'マメ科シャジクソウ属',
         description: '花言葉：幸運。四つ葉のクローバーで有名です。',
         show3DObject: true,
+        model: 'path/to/clover_model.gltf', // 例としてモデルパスを追加
         arOffset: {
           x: 0.3,
           y: 0.5,
@@ -205,8 +204,11 @@
     const predictButton = document.getElementById('predictButton');
     const clearButton = document.getElementById('clearButton');
     const controlPanel = document.getElementById('controlPanel');
+    const scene = document.querySelector('a-scene');
+    const infoBubble = document.getElementById('infoBubble');
     let isDrawing = false;
     let points = [];
+    let identifiedObject = null;
 
     function resizeCanvas() {
       drawingCanvas.width = video.offsetWidth;
@@ -276,8 +278,11 @@
       ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
       points = [];
       predictButton.disabled = true;
-      document.getElementById('cloverText').setAttribute('visible', false);
-      document.getElementById('cloverObj').setAttribute('visible', false);
+      infoBubble.setAttribute('visible', false);
+      if (identifiedObject) {
+        identifiedObject.parentNode.removeChild(identifiedObject);
+        identifiedObject = null;
+      }
     });
 
     predictButton.addEventListener('click', () => {
@@ -312,40 +317,69 @@
         const topLabel = classLabels.length > 0 && topResultIndex >= 0 ? classLabels[topResultIndex] : '不明';
 
         const labelData = labelInfo[topLabel];
-        const cloverText = document.getElementById('cloverText');
         const bubbleText = document.getElementById('bubbleText');
-        const cloverObj = document.getElementById('cloverObj');
+
+        // 古いオブジェクトを削除
+        if (identifiedObject) {
+          identifiedObject.parentNode.removeChild(identifiedObject);
+          identifiedObject = null;
+        }
 
         if (labelData) {
           const template = `なまえ：${labelData.name}\n種類　：${labelData.category}\n説明　：${labelData.description}`;
-          cloverText.setAttribute('visible', true);
+          infoBubble.setAttribute('visible', true);
           bubbleText.setAttribute('value', template);
 
+          if (labelData.show3DObject) {
+            const camera = document.querySelector('#mainCamera');
+            const targetPosition = new THREE.Vector3(0, 0, -1.5);
+            targetPosition.applyQuaternion(camera.object3D.quaternion);
+            targetPosition.add(camera.object3D.position);
+
+            const newObject = document.createElement('a-entity');
+            newObject.setAttribute('id', 'identifiedObject');
+            newObject.setAttribute('position', targetPosition.x + ' ' + targetPosition.y + ' ' + targetPosition.z);
+            newObject.setAttribute('scale', labelData.scale || '0.5 0.5 0.5');
+            if (labelData.model) {
+              newObject.setAttribute('gltf-model', `url(${labelData.model})`);
+            } else {
+              newObject.setAttribute('geometry', 'primitive: box');
+              newObject.setAttribute('material', 'color: #4CAF50');
+            }
+            scene.appendChild(newObject);
+            identifiedObject = newObject;
+
+            const objPos = identifiedObject.getAttribute('position');
+            const offset = labelData.arOffset || {
+              x: 0.3,
+              y: 0.5,
+              z: 0.1
+            };
+            infoBubble.setAttribute('position', {
+              x: objPos.x + offset.x,
+              y: objPos.y + offset.y,
+              z: objPos.z + offset.z
+            });
+          } else {
+            infoBubble.setAttribute('visible', true);
+            const camera = document.querySelector('#mainCamera');
+            const cameraWorldPosition = new THREE.Vector3();
+            camera.object3D.getWorldPosition(cameraWorldPosition);
+            const infoBubblePosition = new THREE.Vector3(0, 0, -1);
+            infoBubblePosition.applyQuaternion(camera.object3D.quaternion);
+            infoBubblePosition.add(cameraWorldPosition);
+            infoBubble.setAttribute('position', infoBubblePosition);
+          }
+        } else {
+          infoBubble.setAttribute('visible', true);
+          bubbleText.setAttribute('value', `分類結果：${topLabel}`);
           const camera = document.querySelector('#mainCamera');
           const cameraWorldPosition = new THREE.Vector3();
           camera.object3D.getWorldPosition(cameraWorldPosition);
-          const targetPosition = new THREE.Vector3(0, 0, -1.5);
-          targetPosition.applyQuaternion(camera.object3D.quaternion);
-          targetPosition.add(cameraWorldPosition);
-
-          cloverObj.setAttribute('position', targetPosition);
-          cloverObj.setAttribute('visible', labelData.show3DObject || false);
-
-          const objPos = cloverObj.getAttribute('position');
-          const offset = labelData.arOffset || {
-            x: 0.3,
-            y: 0.5,
-            z: 0.1
-          };
-          cloverText.setAttribute('position', {
-            x: objPos.x + offset.x,
-            y: objPos.y + offset.y,
-            z: objPos.z + offset.z
-          });
-        } else {
-          cloverText.setAttribute('visible', true);
-          bubbleText.setAttribute('value', `分類結果：${topLabel}`);
-          cloverObj.setAttribute('visible', false);
+          const infoBubblePosition = new THREE.Vector3(0, 0, -1);
+          infoBubblePosition.applyQuaternion(camera.object3D.quaternion);
+          infoBubblePosition.add(cameraWorldPosition);
+          infoBubble.setAttribute('position', infoBubblePosition);
         }
 
         ctx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -371,33 +405,31 @@
 
     AFRAME.registerComponent('tail-update', {
       tick: function() {
-        const cloverText = document.getElementById('cloverText');
-        const tailBlack = document.getElementById('tailBlack');
-        const tailWhite = document.getElementById('tailWhite');
-        const cloverObj = document.getElementById('cloverObj');
-        if (!cloverText || !tailBlack || !tailWhite || !cloverObj || !cloverText.getAttribute('visible')) return;
+        if (!identifiedObject || !infoBubble.getAttribute('visible')) {
+          return;
+        }
 
         const bubblePos = new THREE.Vector3();
-        cloverText.object3D.getWorldPosition(bubblePos);
+        infoBubble.object3D.getWorldPosition(bubblePos);
         const targetPos = new THREE.Vector3();
-        cloverObj.object3D.getWorldPosition(targetPos);
+        identifiedObject.object3D.getWorldPosition(targetPos);
 
         const dir = new THREE.Vector3().subVectors(targetPos, bubblePos);
         dir.y = 0;
         if (dir.length() < 0.001) {
-          tailBlack.setAttribute('rotation', '0 0 0');
-          tailWhite.setAttribute('rotation', '0 0 0');
           return;
         }
         dir.normalize();
         const angle = Math.atan2(dir.x, dir.z) * (180 / Math.PI);
-        tailBlack.setAttribute('rotation', `0 ${angle} 0`);
-        tailWhite.setAttribute('rotation', `0 ${angle} 0`);
+        const tailBlack = infoBubble.querySelector('#tailBlack');
+        const tailWhite = infoBubble.querySelector('#tailWhite');
+        if (tailBlack) tailBlack.setAttribute('rotation', `0 ${angle} 0`);
+        if (tailWhite) tailWhite.setAttribute('rotation', `0 ${angle} 0`);
       }
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-      document.getElementById('cloverText')?.setAttribute('tail-update', '');
+      document.getElementById('infoBubble')?.setAttribute('tail-update', '');
     });
   </script>
 </body>
